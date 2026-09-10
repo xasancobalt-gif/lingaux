@@ -1,12 +1,8 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
-export const dynamic = 'force-dynamic';
 import { auth } from "@/lib/auth";
-export const dynamic = 'force-dynamic';
 import { createPayPalOrder, isPayPalConfigured } from "@/lib/paypal";
-export const dynamic = 'force-dynamic';
 import { z } from "zod";
-export const dynamic = 'force-dynamic';
-
 const schema = z.object({ plan: z.enum(["monthly", "annual", "lifetime"]) });
 
 export async function POST(req: NextRequest) {

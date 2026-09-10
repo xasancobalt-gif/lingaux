@@ -1,10 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
-export const dynamic = 'force-dynamic';
 import { auth } from "@/lib/auth";
-export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
-export const dynamic = 'force-dynamic';
-
 // POST /api/chatbot { message } — AI answers, if can't → create ticket + mail to admin (admin emails hidden from user)
 const KNOWLEDGE = `
 LINGAUX — Speak • Learn • Progress — 30 Day Communication OS.

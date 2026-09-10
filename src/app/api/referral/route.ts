@@ -1,12 +1,8 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
-export const dynamic = 'force-dynamic';
 import { auth } from "@/lib/auth";
-export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
-export const dynamic = 'force-dynamic';
 import { ensureReferralCode } from "@/lib/referral";
-export const dynamic = 'force-dynamic';
-
 // GET /api/referral — wallet + code + list
 export async function GET(req: NextRequest) {
   const session = await auth();

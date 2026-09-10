@@ -1,12 +1,8 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
-export const dynamic = 'force-dynamic';
 import { auth } from "@/lib/auth";
-export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
-export const dynamic = 'force-dynamic';
 import { z } from "zod";
-export const dynamic = 'force-dynamic';
-
 const createSchema = z.object({
   topic: z.string().min(3).max(300),
   duration: z.number().min(5).max(600), // 5s - 10m

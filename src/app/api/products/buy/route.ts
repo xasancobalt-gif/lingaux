@@ -1,12 +1,8 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
-export const dynamic = 'force-dynamic';
 import { auth } from "@/lib/auth";
-export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
-export const dynamic = 'force-dynamic';
 import { z } from "zod";
-export const dynamic = 'force-dynamic';
-
 const schema = z.object({ slug: z.string() });
 
 // POST /api/products/buy { slug } — pay with coins (80 coins = 80rs)

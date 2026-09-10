@@ -1,14 +1,9 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
-export const dynamic = 'force-dynamic';
 import { auth } from "@/lib/auth";
-export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
-export const dynamic = 'force-dynamic';
 import { verifyToken } from "@/lib/2fa";
-export const dynamic = 'force-dynamic';
 import { z } from "zod";
-export const dynamic = 'force-dynamic';
-
 const schema = z.object({
   token: z.string().regex(/^\d{6}$/, "6-digit code required"),
   // For login second step, email/password may be provided instead of session

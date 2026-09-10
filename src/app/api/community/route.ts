@@ -1,12 +1,8 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
-export const dynamic = 'force-dynamic';
 import { auth } from "@/lib/auth";
-export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
-export const dynamic = 'force-dynamic';
 import { z } from "zod";
-export const dynamic = 'force-dynamic';
-
 // Simple profanity + harassment filter (expand with Perspective API)
 const BLOCKED = [
   "fuck","shit","bitch","asshole","slut","whore","nude","porn","sex","harass","kill","die",

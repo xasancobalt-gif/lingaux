@@ -1,8 +1,6 @@
+export const dynamic = 'force-dynamic';
 import { NextResponse } from "next/server";
-export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
-export const dynamic = 'force-dynamic';
-
 export async function GET() {
   let courses = await prisma.course.findMany({ where: { isActive: true }, orderBy: { createdAt: "asc" } });
   if (courses.length === 0) {
