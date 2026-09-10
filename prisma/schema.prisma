@@ -1,0 +1,280 @@
+// LINGAUX — Prisma Schema
+// For local dev: sqlite   DATABASE_URL="file:./dev.db"
+// For Supabase: postgresql DATABASE_URL="postgresql://..."
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+  // provider = "postgresql" // uncomment for Supabase production
+  // url      = env("DATABASE_URL")
+}
+
+// ===== Auth.js required =====
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          String    @default("user")
+  plan          String    @default("free")
+  xp            Int       @default(0)
+  level         Int       @default(1)
+  streak        Int       @default(0)
+  track         String?
+  // 2FA — optional, for admins (and any user)
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String? // base32 TOTP secret
+  // Refer & Earn — 80 coins = 80rs per signup, usable for subs/products only
+  referralCode   String?  @unique // e.g. LINGAUX-AARAV-8X2K
+  referredById   String?  // who referred this user
+  referredBy     User?    @relation("Referrals", fields: [referredById], references: [id])
+  referrals      User[]   @relation("Referrals")
+  coins          Int      @default(0) // 1 coin = 1rs, platform-only
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  recordings    Recording[]
+  posts         CommunityPost[]
+  comments      Comment[]
+  messages      Message[]
+  subscriptions Subscription[]
+  referralsMade Referral[] @relation("Referrer")
+  referralsGot  Referral[] @relation("Referred")
+  tickets       Ticket[]
+  coinTx        CoinTransaction[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ===== LINGAUX Domain =====
+model Recording {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic          String
+  videoUrl       String?
+  audioUrl       String?
+  duration       Int
+  transcript     String?
+  status         String   @default("recorded")
+  recordedAt     DateTime @default(now())
+  reviewUnlockAt DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  review         Review?
+
+  @@index([userId, recordedAt])
+}
+
+model Review {
+  id             String    @id @default(cuid())
+  recordingId    String    @unique
+  recording      Recording @relation(fields: [recordingId], references: [id], onDelete: Cascade)
+
+  audioScore     Float?
+  videoScore     Float?
+  transcriptScore Float?
+  overallScore   Float?
+
+  fillerCount    Int?
+  fillerDetails  String?
+  paceWpm        Int?
+  pauseCount     Int?
+
+  eyeContactPct  Int?
+  gestureScore   Float?
+  postureScore   Float?
+
+  structureIssue String?
+  vocabIssues    String?
+  strongPoints   String?
+
+  weaknesses     String?
+  aiFeedback     String?
+  createdAt      DateTime  @default(now())
+}
+
+model CommunityPost {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String
+  videoUrl  String?
+  day       Int?
+  likes     Int      @default(0)
+  isPinned    Boolean @default(false)
+  isFeatured  Boolean @default(false)
+  isHidden    Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  comments  Comment[]
+  @@index([createdAt])
+  @@index([userId])
+  @@index([isPinned])
+  @@index([isFeatured])
+}
+
+model Comment {
+  id        String        @id @default(cuid())
+  postId    String
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime      @default(now())
+
+  @@index([postId])
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  participantIds String
+  isGroup   Boolean  @default(false)
+  groupName String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  messages  Message[]
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content        String
+  isFlagged      Boolean      @default(false)
+  flagReason     String?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+}
+
+model Subscription {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider         String
+  providerId       String?
+  plan             String
+  status           String   @default("active")
+  currentPeriodEnd DateTime?
+  amount           Int?
+  currency         String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([userId, status])
+}
+
+model Referral {
+  id         String   @id @default(cuid())
+  referrerId String
+  referrer   User     @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referredId String   @unique
+  referred   User     @relation("Referred", fields: [referredId], references: [id], onDelete: Cascade)
+  coins      Int      @default(80)
+  createdAt  DateTime @default(now())
+
+  @@index([referrerId])
+}
+
+model CoinTransaction {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount    Int // +80 or -199 etc
+  reason    String // referral, subscription, product, admin
+  meta      String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Ticket {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  email     String?
+  subject   String
+  message   String
+  status    String   @default("open") // open, replied, closed
+  via       String   @default("chatbot") // chatbot, email
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([userId])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  price       Int // paise/cents, but coins 1:1 rs
+  currency    String   @default("INR")
+  image       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Course {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  track       String   @default("general") // career, social, creator, leadership
+  lessons     Int      @default(8)
+  duration    String   @default("8 lessons")
+  free        Boolean  @default(false)
+  image       String?
+  videoUrl    String? // youtube/intro
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

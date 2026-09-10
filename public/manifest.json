@@ -1,0 +1,22 @@
+{
+  "name": "LINGAUX — Speak • Learn • Progress",
+  "short_name": "LINGAUX",
+  "description": "Master communication in 30 days — record, triple-scan, progress. 3D OS.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#06060A",
+  "theme_color": "#7C3AED",
+  "icons": [
+    {
+      "src": "/brand/lingaux-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
