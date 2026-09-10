@@ -24,6 +24,7 @@
     "nodemailer": "^10.0.1",
     "openai": "^7.10.0",
     "otpauth": "^9.5.2",
+    "prisma": "^5.22.0",
     "qrcode": "^1.5.4",
     "razorpay": "^2.9.8",
     "react": "19.2.8",
@@ -41,7 +42,6 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
-    "prisma": "^5.22.0",
     "tailwindcss": "^4",
     "tsx": "^4.19.1",
     "typescript": "^5"
