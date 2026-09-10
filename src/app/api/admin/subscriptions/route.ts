@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+export const dynamic = 'force-dynamic';
 import { requireAdmin } from "@/lib/admin-guard";
+export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
+export const dynamic = 'force-dynamic';
 
 // GET /api/admin/subscriptions — list subs + pending bank
 export async function GET(req: NextRequest) {

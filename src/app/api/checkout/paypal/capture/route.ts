@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+export const dynamic = 'force-dynamic';
 import { capturePayPalOrder } from "@/lib/paypal";
+export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
+export const dynamic = 'force-dynamic';
 
 // GET /api/checkout/paypal/capture?token=ORDER_ID&PayerID=...
 // PayPal redirects here after approval. We capture and upgrade, then redirect to success.
@@ -56,6 +59,7 @@ export async function GET(req: NextRequest) {
 
 // Also support POST from frontend modal flow (orderId in body)
 import { z } from "zod";
+export const dynamic = 'force-dynamic';
 const postSchema = z.object({ orderId: z.string(), plan: z.enum(["monthly", "annual", "lifetime"]).optional() });
 
 export async function POST(req: NextRequest) {

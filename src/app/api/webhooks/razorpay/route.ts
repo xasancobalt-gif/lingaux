@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
+export const dynamic = 'force-dynamic';
 import crypto from "crypto";
+export const dynamic = 'force-dynamic';
 
 // Razorpay webhook: https://razorpay.com/docs/webhooks/
 // Event: payment.captured, order.paid

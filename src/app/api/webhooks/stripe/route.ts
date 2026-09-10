@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+export const dynamic = 'force-dynamic';
 import { stripe } from "@/lib/stripe";
+export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   if (!stripe) return NextResponse.json({ error: "Stripe not configured" }, { status: 503 });

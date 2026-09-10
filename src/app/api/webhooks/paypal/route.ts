@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
+export const dynamic = 'force-dynamic';
 import { verifyPayPalWebhook } from "@/lib/paypal";
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   const raw = await req.text();

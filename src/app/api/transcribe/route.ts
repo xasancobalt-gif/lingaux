@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+export const dynamic = 'force-dynamic';
 import { auth } from "@/lib/auth";
+export const dynamic = 'force-dynamic';
 import OpenAI from "openai";
+export const dynamic = 'force-dynamic';
 
 // POST /api/transcribe — form-data: file (audio/video) -> Whisper transcript
 // If OPENAI_API_KEY missing, returns mock transcript (so UI works without billing)

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
+export const dynamic = 'force-dynamic';
 import { requireAdmin } from "@/lib/admin-guard";
+export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const { error } = await requireAdmin();

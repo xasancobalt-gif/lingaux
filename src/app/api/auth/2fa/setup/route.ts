@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
+export const dynamic = 'force-dynamic';
 import { auth } from "@/lib/auth";
+export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
+export const dynamic = 'force-dynamic';
 import { generateSecret, generateQRDataURL } from "@/lib/2fa";
+export const dynamic = 'force-dynamic';
 
 // POST /api/auth/2fa/setup — authenticated, generate secret + QR (optional)
 // Does not enable until verify succeeds
