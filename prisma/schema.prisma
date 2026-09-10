@@ -8,8 +8,8 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("postgresql://postgres.eeucibagtlkpgfbjmbgw:Nkumar@2710#2002@aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres?pgbouncer=true")
-  directUrl = env("postgresql://postgres:Nkumar@2710#2002@db.eeucibagtlkpgfbjmbgw.supabase.co:5432/postgres")
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ===== Auth.js required =====
