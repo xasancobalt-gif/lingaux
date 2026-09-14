@@ -1,4 +1,4 @@
-# VOXA Payments — Stripe + Razorpay + PayPal Wiring
+# LINGAUX Payments — Stripe + Razorpay + PayPal Wiring
 
 Build `✓ 19 routes` — real checkout wired for all 3 gateways + UPI + Bank Transfer, fallback mock when keys missing (demo never breaks).
 
@@ -48,8 +48,8 @@ Paywall → Bank Transfer → creates `Subscription` with `status=pending_bank` 
 
 ## Deploy Checklist
 - Vercel → Env vars: all keys + `AUTH_SECRET` + `DATABASE_URL` (Supabase pooler) + `NEXT_PUBLIC_*`
-- Stripe Dashboard → Webhooks → `https://voxa.app/api/webhooks/stripe`
-- Razorpay Dashboard → Webhooks → `https://voxa.app/api/webhooks/razorpay`
+- Stripe Dashboard → Webhooks → `https://lingaux.app/api/webhooks/stripe`
+- Razorpay Dashboard → Webhooks → `https://lingaux.app/api/webhooks/razorpay`
 - Supabase Storage → bucket `recordings` public
 
 ## Prisma

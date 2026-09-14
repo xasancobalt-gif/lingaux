@@ -5,7 +5,8 @@ const prisma = new PrismaClient();
 
 async function main(){
   const hash = await bcrypt.hash("password123", 10);
-  const adminHash = await bcrypt.hash("VoxaAdmin2026!", 10);
+  const adminPassword = process.env.ADMIN_SEED_PASSWORD || "LINGAUXAdmin2026!";
+  const adminHash = await bcrypt.hash(adminPassword, 10);
 
   // Admins — full control: edit/delete/add/pin/feature anything
   for (const email of ["ghalmenandkumar@gmail.com","xasancobalt@gmail.com"]) {
@@ -22,14 +23,16 @@ async function main(){
         level: 99,
       }
     });
-    console.log(`Admin ensured: ${email} / password: VoxaAdmin2026! (change after first login)`);
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`Admin ensured: ${email} — role admin (password from ADMIN_SEED_PASSWORD env)`);
+    }
   }
 
   const demo = await prisma.user.upsert({
-    where:{ email: "demo@voxa.app" },
+    where:{ email: "demo@lingaux.app" },
     update:{},
     create:{
-      email: "demo@voxa.app",
+      email: "demo@lingaux.app",
       name: "Aarav Demo",
       password: hash,
       plan: "pro",
@@ -77,9 +80,9 @@ async function main(){
   }
 
   const sofia = await prisma.user.upsert({
-    where:{ email:"sofia@voxa.app"},
+    where:{ email:"sofia@lingaux.app"},
     update:{},
-    create:{ email:"sofia@voxa.app", name:"Sofia K.", image:"https://i.pravatar.cc/150?img=5", plan:"pro" }
+    create:{ email:"sofia@lingaux.app", name:"Sofia K.", image:"https://i.pravatar.cc/150?img=5", plan:"pro" }
   });
 
   const postCount = await prisma.communityPost.count();

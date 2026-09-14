@@ -1,7 +1,7 @@
-# VOXA — Master Communication in 30 Days
+# LINGAUX — Speak • Learn • Progress | Master Communication in 30 Days
 
-Futuristic Glassmorphic OS built on Vinh Giang's 30-Day System.
-Global, Freemium, Multi-tab app.
+Futuristic 3D Glassmorphic OS built on LINGAUX 30-Day System.
+Global, Freemium, Multi-tab 3D OS.
 
 ## Run
 ```bash
@@ -18,7 +18,7 @@ npm run dev
 - State: Client tab router (Dashboard, Studio, Review, Practice, Academy, Community, Messages, Profile)
 
 ## Features Implemented (src/app/page.tsx:1)
-- **Dashboard**: streak, XP, 4-problem matrix, Vinh loop, leaderboard
+- **Dashboard**: streak, XP, 4-problem matrix, LINGAUX loop, leaderboard + 3D characters
 - **Studio**: 5-min record engine, random topics, 24h detachment lock, timer
 - **Review**: Triple-Scan (Audio/Video/Transcript) + 4 weaknesses + effort tracker
 - **Practice**: Weekly drill + 30-day calendar
@@ -57,4 +57,4 @@ npm run dev
 3. Add Stripe/Razorpay webhooks + PayPal SDK
 4. Deploy to Vercel Edge + R2 for video
 
-Placeholder brand: VOXA — swap in `src/app/layout.tsx:15` metadata + `src/app/page.tsx` logo.
+Brand: LINGAUX `public/brand/lingaux-logo.png` — `src/components/Logo.tsx:1` + `src/app/layout.tsx:25`.

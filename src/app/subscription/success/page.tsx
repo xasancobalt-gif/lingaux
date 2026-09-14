@@ -35,7 +35,7 @@ export default async function Success({ searchParams }: { searchParams: Promise<
           <Link href="/?tab=studio" className="px-6 py-3 rounded-full bg-white text-black font-bold">Go to Studio →</Link>
           <Link href="/" className="px-6 py-3 rounded-full glass">Dashboard</Link>
         </div>
-        <div className="mt-4 text-xs text-white/40">Session: {params.session_id?.slice(0,12) || params.payment_id?.slice(0,12) || "—"} • Need invoice? support@LINGAUX.app</div>
+        <div className="mt-4 text-xs text-white/40">Session: {params.session_id?.slice(0,12) || params.payment_id?.slice(0,12) || "—"} • Need invoice? support@lingaux.app</div>
       </div>
     </div>
   );

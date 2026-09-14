@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getAdminEmails } from "@/lib/admin";
 // POST /api/chatbot { message } — AI answers, if can't → create ticket + mail to admin (admin emails hidden from user)
 const KNOWLEDGE = `
 LINGAUX — Speak • Learn • Progress — 30 Day Communication OS.
@@ -81,11 +82,11 @@ export async function POST(req: NextRequest) {
         });
         await transporter.sendMail({
           from: process.env.SMTP_FROM || process.env.SMTP_USER,
-          to: ["ghalmenandkumar@gmail.com", "xasancobalt@gmail.com"].join(","),
+          to: getAdminEmails().join(","),
           subject: `[LINGAUX Ticket #${ticket.id.slice(0,8)}] ${ticket.subject}`,
           text: `From: ${email}\nMessage: ${message}\nTicket ID: ${ticket.id}\n\nView in /admin`,
         });
-      } else {
+      } else if (process.env.NODE_ENV !== "production") {
         console.log(`[ticket] Would mail support: ${ticket.id} — ${message} — from ${email}`);
       }
     } catch (e) { console.warn("[ticket mail]", e); }

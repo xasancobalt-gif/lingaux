@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { isAdmin } from "@/lib/admin";
 // GET /api/admin/users?limit=50 — list all users (admin only)
 export async function GET(req: NextRequest) {
   const { error } = await requireAdmin();
@@ -59,7 +60,7 @@ export async function DELETE(req: NextRequest) {
   // We already checked, but ensure not deleting own admin if last admin
   const target = await prisma.user.findUnique({ where: { id: userId } });
   if (!target) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (target.email?.toLowerCase() === "ghalmenandkumar@gmail.com" || target.email?.toLowerCase() === "xasancobalt@gmail.com") {
+  if (target.email && isAdmin(target.email)) {
     return NextResponse.json({ error: "Cannot delete primary admin" }, { status: 403 });
   }
 

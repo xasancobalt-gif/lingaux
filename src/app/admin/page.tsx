@@ -62,7 +62,7 @@ export default function AdminPage(){
     <div className="min-h-screen bg-mesh grid place-items-center p-6">
       <div className="glass-card rounded-2xl p-8 max-w-md w-full text-center text-white">
         <h1 className="font-serif text-2xl font-bold">Admin — Sign in required</h1>
-        <p className="text-sm text-white/60 mt-2">Use ghalmenandkumar@gmail.com or xasancobalt@gmail.com</p>
+        <p className="text-sm text-white/60 mt-2">Sign in with your admin account to continue</p>
         <Link href="/" className="mt-6 inline-block px-6 py-3 rounded-full bg-white text-black font-bold">Go to LINGAUX →</Link>
       </div>
     </div>
@@ -71,7 +71,7 @@ export default function AdminPage(){
     <div className="min-h-screen bg-mesh grid place-items-center p-6">
       <div className="glass-card rounded-2xl p-8 max-w-md w-full text-center text-white border-red-500/20">
         <h1 className="font-serif text-2xl font-bold">403 — Admin only</h1>
-        <p className="text-sm text-white/60 mt-2">Your account <b className="text-white">{session.user?.email}</b> is not admin. Contact ghalmenandkumar@gmail.com</p>
+        <p className="text-sm text-white/60 mt-2">Your account <b className="text-white">{session.user?.email}</b> is not admin. Contact support via chatbot.</p>
         <Link href="/" className="mt-6 inline-block px-6 py-3 rounded-full bg-white text-black font-bold">Back to app</Link>
       </div>
     </div>
@@ -126,8 +126,8 @@ export default function AdminPage(){
             <div className="glass-card rounded-2xl p-6 border-amber-400/20">
               <div className="text-sm font-black tracking-widest text-amber-300">ADMIN CREDENTIALS</div>
               <div className="mt-2 text-sm leading-relaxed">
-                <div>• <b>ghalmenandkumar@gmail.com</b> / <b>xasancobalt@gmail.com</b> — both auto-promoted to <code className="px-1.5 py-0.5 rounded bg-white/10">role=admin</code> + <code className="px-1.5 py-0.5 rounded bg-white/10">plan=pro</code> on first sign-in (credentials or Google OAuth).</div>
-                <div className="mt-1">• Default password after seed: <code className="px-2 py-1 rounded bg-amber-400 text-black font-mono">LINGAUXAdmin2026!</code> — change in Profile → Change password after login.</div>
+                <div>• Admins auto-promoted to <code className="px-1.5 py-0.5 rounded bg-white/10">role=admin</code> + <code className="px-1.5 py-0.5 rounded bg-white/10">plan=pro</code> on first sign-in (credentials or Google OAuth). Emails from <code>ADMIN_EMAILS</code> env.</div>
+                <div className="mt-1">• Default password: from <code>ADMIN_SEED_PASSWORD</code> env (dev default hidden) — change in Profile → Change password after login.</div>
                 <div className="mt-1 text-white/60">Auth: Auth.js v5 `src/lib/auth.ts:1` with `isAdmin()` `src/lib/admin.ts:1` + `requireAdmin()` `src/lib/admin-guard.ts:1`. All `/api/admin/*` return 403 if not admin.</div>
               </div>
             </div>

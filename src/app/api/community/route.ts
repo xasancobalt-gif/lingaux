@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { isAdmin } from "@/lib/admin";
 // Simple profanity + harassment filter (expand with Perspective API)
 const BLOCKED = [
   "fuck","shit","bitch","asshole","slut","whore","nude","porn","sex","harass","kill","die",
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
   if(email){
     try{
       const u = await prisma.user.findUnique({ where:{ email }});
-      isAdminUser = u?.role==="admin" || ["ghalmenandkumar@gmail.com","xasancobalt@gmail.com"].includes(email);
+      isAdminUser = u?.role==="admin" || isAdmin(email);
     }catch{}
   }
   const where = isAdminUser ? {} : { isHidden: false };

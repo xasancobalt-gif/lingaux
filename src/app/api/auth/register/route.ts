@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { isAdmin } from "@/lib/admin";
 const schema = z.object({
   name: z.string().min(1).max(50),
   email: z.string().email(),
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
     if (existing) return NextResponse.json({ error: "Email already registered. Please sign in." }, { status: 409 });
 
     const hashed = await bcrypt.hash(password, 10);
-    const isAdmin = ["ghalmenandkumar@gmail.com","xasancobalt@gmail.com"].includes(lower);
+    const isAdminFlag = isAdmin(lower);
     // Generate referral code for new user
     const { generateReferralCode } = await import("@/lib/referral");
     let newCode = generateReferralCode(name || email);
@@ -41,8 +42,8 @@ export async function POST(req: NextRequest) {
         email: lower,
         password: hashed,
         track: track || null,
-        plan: isAdmin ? "pro" : "free",
-        role: isAdmin ? "admin" : "user",
+        plan: isAdminFlag ? "pro" : "free",
+        role: isAdminFlag ? "admin" : "user",
         referralCode: newCode,
       },
       select: { id: true, email: true, name: true, role: true, referralCode: true },
