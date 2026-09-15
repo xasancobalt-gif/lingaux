@@ -154,6 +154,23 @@ export default function LINGAUX() {
     await signIn(provider, { callbackUrl: "/" });
   };
 
+  const handleMagicLink = async () => {
+    if (!email) { setToast("Enter your email first"); setTimeout(()=>setToast(null),2500); return; }
+    setAuthLoading(true);
+    try {
+      const res = await signIn("email", { email, redirect: false }) as any;
+      if (res?.error) {
+        setToast(res.error || "Failed to send magic link — check RESEND_API_KEY config");
+      } else {
+        setToast("Magic link sent — check your inbox 📮");
+      }
+    } catch (e: any) {
+      setToast(e.message || "Failed to send magic link");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
   const handleRecordSave = async () => {
     if (status !== "authenticated") { setShowAuth(true); setToast("Sign in to save recordings (free)"); setTimeout(()=>setToast(null),2000); return; }
     try {
@@ -1346,7 +1363,7 @@ export default function LINGAUX() {
                 <button disabled={authLoading} onClick={()=> authMode==="signup" ? handleRegister() : handleCredentialsLogin()} className="w-full py-3 rounded-xl bg-white text-black font-black disabled:opacity-60">
                   {authLoading ? "Please wait..." : need2FA ? "Verify 2FA & Sign in →" : authMode==="signup" ? "Create account →" : "Sign in →"}
                 </button>
-                <button onClick={()=>{setToast("Magic link: configure Resend + Auth.js email provider to enable"); setTimeout(()=>setToast(null),2500);}} className="w-full py-3 rounded-xl glass font-bold text-sm">✉ Send magic link (passwordless)</button>
+                <button disabled={authLoading} onClick={handleMagicLink} className="w-full py-3 rounded-xl glass font-bold text-sm">✉ Send magic link (passwordless)</button>
                 <div className="text-xs text-white/40 leading-relaxed text-center">
                   By continuing you agree to Terms & Privacy. We allow paste + password managers • <span className="text-white/70">WCAG AA Auth</span>. OAuth = no cognitive test needed.
                 </div>

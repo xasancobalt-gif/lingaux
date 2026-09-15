@@ -4,6 +4,7 @@ import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import Apple from "next-auth/providers/apple";
 import LinkedIn from "next-auth/providers/linkedin";
+import Email from "next-auth/providers/email";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
@@ -14,6 +15,40 @@ const credentialsSchema = z.object({
   password: z.string().min(8),
   token: z.string().optional(),
 });
+
+// Only enable the Email (magic link) provider with a REAL Resend key —
+// a placeholder/empty key must not even construct the provider.
+function isResendConfigured() {
+  const k = (process.env.RESEND_API_KEY || "").trim();
+  return k.startsWith("re_") && k.length > 12 && !k.includes("...");
+}
+
+// Resend sends via API; Auth.js v5's Email() still requires a `server`
+// object at init (it spreads Nodemailer(config) which throws without one).
+// This dummy is never used because we override sendVerificationRequest.
+const DUMMY_SMTP_SERVER = {
+  host: "127.0.0.1",
+  port: 1025,
+  auth: { user: "lingaux", pass: "lingaux" },
+};
+
+async function sendMagicLinkViaResend({ identifier, url }: { identifier: string; url: string }) {
+  const { Resend } = await import("resend");
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const from = process.env.EMAIL_FROM || "LINGAUX <onboarding@resend.dev>";
+  try {
+    await resend.emails.send({
+      from,
+      to: identifier,
+      subject: "LINGAUX — your magic link",
+      text: `Click the link to sign in to LINGAUX:\n\n${url}\n\nThis link expires in 24 hours. If you didn't request this, ignore this email.`,
+      html: `<!DOCTYPE html><html><body style="font-family:sans-serif;padding:32px;text-align:center;background:#0A0A0F;color:#fff;"><div style="max-width:480px;margin:0 auto;"><h1 style="font-size:20px;">LINGAUX — Your Magic Link</h1><p style="color:#aaa;margin:16px 0;">Click the button below to sign in. This link expires in 24 hours.</p><a href="${url}" style="display:inline-block;padding:14px 32px;background:#fff;color:#000;font-weight:bold;border-radius:999px;text-decoration:none;">Sign in to LINGAUX</a><p style="color:#666;margin-top:24px;font-size:12px;">If you didn't request this, just ignore this email.</p></div></body></html>`,
+    });
+  } catch (err) {
+    console.error("Resend magic link error:", err);
+    throw new Error("Failed to send magic link email");
+  }
+}
 
 function getNextAuth() {
   return NextAuth({
@@ -36,6 +71,18 @@ function getNextAuth() {
         clientSecret: process.env.LINKEDIN_CLIENT_SECRET!,
         allowDangerousEmailAccountLinking: true,
       })] : []),
+
+      ...(isResendConfigured() ? [{
+        ...Email({
+          server: DUMMY_SMTP_SERVER,
+          from: process.env.EMAIL_FROM || "LINGAUX <onboarding@resend.dev>",
+          ...({ allowDangerousEmailAccountLinking: true } as { allowDangerousEmailAccountLinking: boolean }),
+        }),
+        // Top-level override — this is what Auth.js actually calls.
+        // (A sendVerificationRequest nested inside Email({...}) would be
+        // swallowed into `options` and ignored at runtime.)
+        sendVerificationRequest: sendMagicLinkViaResend,
+      }] : []),
 
       Credentials({
         name: "Email & Password",
