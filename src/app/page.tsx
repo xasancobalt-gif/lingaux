@@ -471,7 +471,7 @@ export default function LINGAUX() {
                 <div className="text-[10px] tracking-[0.2em] text-white/50 font-medium">SPEAK • LEARN • PROGRESS</div>
               </div>
               <div className="hidden lg:flex ml-4 items-center gap-2 text-[11px] font-semibold px-3 py-1 rounded-full glass border-amber-400/20 text-amber-200">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"/> SYSTEM ONLINE • 12,483 ACTIVE
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"/> SYSTEM ONLINE{leaderboard.length>0 ? ` • ${leaderboard.length} RANKED` : ""}
               </div>
             </div>
             <nav className="hidden xl:flex items-center gap-1">
@@ -488,12 +488,11 @@ export default function LINGAUX() {
           <div className="flex items-center gap-2 md:gap-3">
             <div className="hidden md:flex items-center gap-2 glass rounded-full px-3 py-1.5">
               <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-sm">🔥</div>
-              <div className="text-xs leading-none"><div className="font-bold">7 Day Streak</div><div className="text-white/50 text-[10px]">Keep going!</div></div>
-              <div className="ml-2 hidden lg:block w-20 h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full w-[70%] bg-gradient-to-r from-amber-400 to-orange-500"/></div>
+              <div className="text-xs leading-none"><div className="font-bold">{status==="authenticated" ? `${myStreak} Day Streak` : "No Streak"}</div><div className="text-white/50 text-[10px]">{status==="authenticated" ? (myStreak>0 ? "Keep going!" : "Record today!") : "Sign in"}</div></div>
             </div>
             <div className="hidden md:flex items-center gap-1.5 glass rounded-full px-2.5 py-1.5">
-              <span className="text-amber-300">⚡</span><span className="text-sm font-bold">1,240</span><span className="text-xs text-white/50 hidden lg:inline">XP</span>
-              <span className="ml-1 px-2 py-0.5 rounded-full bg-amber-400 text-black text-[10px] font-black">LVL 8</span>
+              <span className="text-amber-300">⚡</span><span className="text-sm font-bold">{status==="authenticated" ? myXp.toLocaleString() : 0}</span><span className="text-xs text-white/50 hidden lg:inline">XP</span>
+              <span className="ml-1 px-2 py-0.5 rounded-full bg-amber-400 text-black text-[10px] font-black">LVL {status==="authenticated" ? myLevel : 1}</span>
             </div>
             {status==="authenticated" && (
               <div className="hidden md:flex items-center gap-1 glass rounded-full px-2.5 py-1.5">
@@ -516,13 +515,19 @@ export default function LINGAUX() {
               <button onClick={()=>triggerPaywall("header")} className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white text-black text-[13px] font-bold hover:bg-zinc-100 transition">Upgrade to Pro</button>
             )}
             {status==="authenticated" ? (
-              <button onClick={()=> signOut()} className="w-9 h-9 rounded-full glass flex items-center justify-center overflow-hidden border-white/15" title="Sign out">
-                <img src={session?.user?.image || "https://i.pravatar.cc/100?img=33"} alt="avatar" className="w-full h-full object-cover"/>
-              </button>
+              <>
+                {session?.user?.image ? (
+                  <img src={session.user.image} alt={myName} title={myName} className="w-9 h-9 rounded-full object-cover border border-white/15"/>
+                ) : (
+                  <div title={myName} className="w-9 h-9 rounded-full bg-white text-black grid place-items-center font-black">{avatarOf(session?.user?.name||session?.user?.email)}</div>
+                )}
+                <button onClick={()=> signOut({ callbackUrl: "/" })} title="Log out" className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-full glass text-[13px] font-bold hover:bg-white/10 transition">⏻<span className="hidden sm:inline">Log out</span></button>
+              </>
             ) : (
-              <button onClick={()=> setShowAuth(true)} className="w-9 h-9 rounded-full glass flex items-center justify-center overflow-hidden border-white/15">
-                <span className="font-black">?</span>
-              </button>
+              <>
+                <button onClick={()=>{ setAuthMode("signin"); setShowAuth(true); }} className="px-3 sm:px-4 py-2 rounded-full text-[13px] font-bold text-white/80 hover:text-white transition">Log in</button>
+                <button onClick={()=>{ setAuthMode("signup"); setShowAuth(true); }} className="px-3 sm:px-4 py-2 rounded-full bg-white text-black text-[13px] font-bold hover:bg-zinc-100 transition">Sign up</button>
+              </>
             )}
           </div>
         </div>
@@ -578,13 +583,13 @@ export default function LINGAUX() {
             <div className="absolute -right-8 -top-8 w-24 h-24 rounded-full bg-gradient-to-br from-amber-400/30 to-violet-500/20 blur-2xl"/>
             <div className="text-xs font-bold tracking-widest text-amber-300">LINGAUX PRO</div>
             <div className="mt-1 text-sm font-bold leading-tight">Unlock Triple-Scan AI + Community</div>
-            <div className="mt-1 text-xs text-white/60">Join 8,200+ pros transforming daily.</div>
+            <div className="mt-1 text-xs text-white/60">Unlimited scans, paid community, private chat.</div>
             <button onClick={()=>triggerPaywall("sidebar")} className="mt-3 w-full py-2.5 rounded-xl bg-white text-black text-sm font-bold">View Plans — from ₹199/mo</button>
             <div className="mt-2 text-[11px] text-white/40 text-center">PayPal • UPI • Cards • Bank</div>
           </div>
 
           <div className="text-[11px] text-white/30 px-2 leading-relaxed">
-            Health: <span className="text-emerald-400">● 99.9% Uptime</span> • GDPR • SOC 2<br/> Need help? support@lingaux.app
+            Health: <span className="text-emerald-400">● All systems operational</span><br/> Need help? support@lingaux.app
           </div>
         </aside>
 
@@ -600,7 +605,7 @@ export default function LINGAUX() {
                 <div className="relative grid lg:grid-cols-[1.15fr_0.85fr] gap-8 items-center">
                   <div>
                     <div className="inline-flex items-center gap-2 glass rounded-full px-3 py-1.5 text-xs font-semibold text-white/80 border-white/10">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"/> Based on LINGAUX 30-Day System • 343K+ validated
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"/> Based on the LINGAUX 30-Day System
                     </div>
                     <h1 className="mt-4 font-serif text-[32px] md:text-[44px] font-bold leading-[0.9] tracking-tight">
                       Master communication<br/>
@@ -1349,7 +1354,7 @@ export default function LINGAUX() {
                   <div className="glass-card rounded-2xl p-5">
                     <div className="font-bold text-sm">Site health</div>
                     <div className="mt-3 space-y-2 text-xs">
-                      <div className="flex justify-between"><span className="text-white/60">Uptime</span><span className="text-emerald-400 font-bold">99.98% • 4ms edge</span></div>
+                      <div className="flex justify-between"><span className="text-white/60">Status</span><span className="text-emerald-400 font-bold">Operational</span></div>
                       <div className="flex justify-between"><span className="text-white/60">Data</span><span>GDPR • E2E messages</span></div>
                       <div className="flex justify-between"><span className="text-white/60">Support</span><span>support@lingaux.app • 12h</span></div>
                     </div>
@@ -1363,13 +1368,17 @@ export default function LINGAUX() {
 
       {/* Bottom nav mobile */}
       <div className="xl:hidden fixed bottom-0 inset-x-0 z-30 glass-strong border-t border-white/10">
-        <div className="grid grid-cols-5 gap-1 px-2 py-2">
+        <div className="grid grid-cols-6 gap-1 px-2 py-2">
           {tabs.slice(0,5).map(t=>(
             <button key={t.id} onClick={()=>setActive(t.id)} className={`flex flex-col items-center gap-1 py-1.5 rounded-xl ${active===t.id? "bg-white text-black":"text-white/60"}`}>
               <span className="text-[16px] leading-none">{t.icon}</span>
               <span className="text-[10px] font-bold leading-none">{t.label}</span>
             </button>
           ))}
+          <button onClick={()=> status==="authenticated" ? setActive("profile") : setShowAuth(true)} className={`flex flex-col items-center gap-1 py-1.5 rounded-xl ${active==="profile"&&status==="authenticated" ? "bg-white text-black":"text-white/60"}`}>
+            <span className="text-[16px] leading-none">{status==="authenticated" ? "◐" : "👤"}</span>
+            <span className="text-[10px] font-bold leading-none">{status==="authenticated" ? "Account" : "Join"}</span>
+          </button>
         </div>
       </div>
 
