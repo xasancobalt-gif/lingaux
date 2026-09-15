@@ -48,9 +48,20 @@ function getNextAuth() {
           const parsed = credentialsSchema.safeParse(creds);
           if (!parsed.success) return null;
           const { email, password, token } = parsed.data;
-          const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+          let user: any;
+          try {
+            user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+          } catch (e: any) {
+            if ((e?.message || "").includes("Can't reach database") || e?.code === "P1001" || e?.code === "P1017") {
+              throw new Error("AUTH_DB_ERROR");
+            }
+            throw e;
+          }
           if (!user || !user.password) return null;
-          const ok = await bcrypt.compare(password, user.password);
+          let ok: boolean;
+          try {
+            ok = await bcrypt.compare(password, user.password);
+          } catch { return null; }
           if (!ok) return null;
           if ((user as any).twoFactorEnabled) {
             if (!token) throw new Error("2FA_REQUIRED");

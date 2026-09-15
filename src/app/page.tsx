@@ -107,23 +107,47 @@ export default function LINGAUX() {
     setAuthLoading(true);
     const payload:any = { email, password, redirect: false };
     if(need2FA && twoFactorCode) payload.token = twoFactorCode;
-    const res = await signIn("credentials", payload) as any;
-    setAuthLoading(false);
-    if (res?.error) {
-      if(res.error.includes("2FA_REQUIRED")){
-        setNeed2FA(true);
-        setToast("2FA required — enter 6-digit code from Authenticator");
-        setTimeout(()=>setToast(null),3000);
-        return;
+    try {
+      const res = await signIn("credentials", payload) as any;
+      if (res?.error) {
+        if(typeof res.error === "object" && res.error !== null){
+          const e:any = res.error;
+          if(e.code === "2FA_REQUIRED"){ setNeed2FA(true); setToast("2FA required — enter 6-digit code from Authenticator"); setTimeout(()=>setToast(null),3000); return; }
+          if(e.code === "INVALID_2FA"){ setToast("Invalid 2FA code — try again"); setTimeout(()=>setToast(null),2500); return; }
+          if(e.code === "AUTH_DB_ERROR"){ setToast("Database unreachable — check DATABASE_URL/DIRECT_URL on Vercel (db.… is not reachable from Vercel) and that you ran the SQL in Supabase"); setTimeout(()=>setToast(null),5000); return; }
+          if(e.code === "CREDENTIALS") { setToast("Invalid email or password"); setTimeout(()=>setToast(null),2500); return; }
+          setToast(e.message || "Sign in failed"); setTimeout(()=>setToast(null),3000); return;
+        }
+        if(res.error.includes("2FA_REQUIRED")){
+          setNeed2FA(true);
+          setToast("2FA required — enter 6-digit code from Authenticator");
+          setTimeout(()=>setToast(null),3000);
+          return;
+        }
+        if(res.error.includes("INVALID_2FA")){
+          setToast("Invalid 2FA code — try again");
+          setTimeout(()=>setToast(null),2500);
+          return;
+        }
+        if(res.error.includes("AUTH_DB_ERROR")){
+          setToast("Database unreachable — check DATABASE_URL/DIRECT_URL (prod) & run Supabase SQL");
+          setTimeout(()=>setToast(null),5000);
+          return;
+        }
+        if(res.error.includes("CREDENTIALS")){
+          setToast("Invalid email or password"); setTimeout(()=>setToast(null),2500); return;
+        }
+        setToast("Invalid email or password"); setTimeout(()=>setToast(null),2500);
       }
-      if(res.error.includes("INVALID_2FA")){
-        setToast("Invalid 2FA code — try again");
-        setTimeout(()=>setToast(null),2500);
-        return;
+      else { setShowAuth(false); setNeed2FA(false); setTwoFactorCode(""); setToast("Signed in — streak intact 🔥"); setTimeout(()=>setToast(null),2000); }
+    } catch (e:any) {
+      const msg = (e?.message || "") as string;
+      if(/database|connect|ECONNREFUSED|reach/i.test(msg) || /AUTH_DB_ERROR/.test(msg)){
+        setToast("Database unreachable — set DATABASE_URL + DIRECT_URL (pooler :6543) in Vercel, and run the SQL you pasted in Supabase. Open /api/debug/auth"); setTimeout(()=>setToast(null),5500);
+      } else {
+        setToast(msg || "Sign in failed — network/CSRF error. Try again."); setTimeout(()=>setToast(null),3500);
       }
-      setToast("Invalid email or password"); setTimeout(()=>setToast(null),2500);
-    }
-    else { setShowAuth(false); setNeed2FA(false); setTwoFactorCode(""); setToast("Signed in — streak intact 🔥"); setTimeout(()=>setToast(null),2000); }
+    } finally { setAuthLoading(false); }
   };
 
   const handleOAuth = async (provider: "google"|"apple"|"linkedin") => {
