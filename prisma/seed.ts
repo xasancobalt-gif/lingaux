@@ -4,7 +4,6 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main(){
-  const hash = await bcrypt.hash("password123", 10);
   const adminPassword = process.env.ADMIN_SEED_PASSWORD || "LINGAUXAdmin2026!";
   const adminHash = await bcrypt.hash(adminPassword, 10);
 
@@ -19,8 +18,9 @@ async function main(){
         password: adminHash,
         role: "admin",
         plan: "pro",
-        xp: 9999,
-        level: 99,
+        xp: 0,
+        level: 1,
+        streak: 0,
       }
     });
     if (process.env.NODE_ENV !== "production") {
@@ -28,82 +28,9 @@ async function main(){
     }
   }
 
-  const demo = await prisma.user.upsert({
-    where:{ email: "demo@lingaux.app" },
-    update:{},
-    create:{
-      email: "demo@lingaux.app",
-      name: "Aarav Demo",
-      password: hash,
-      plan: "pro",
-      xp: 1240,
-      level: 8,
-      streak: 7,
-      track: "career",
-      image: "https://i.pravatar.cc/150?img=33",
-    }
-  });
-
-  const existingRec = await prisma.recording.findFirst({ where:{ userId: demo.id }});
-  if (!existingRec) {
-    const rec = await prisma.recording.create({
-      data:{
-        userId: demo.id,
-        topic: "Explain why communication is the #1 career skill",
-        duration: 303,
-        status: "reviewed",
-        recordedAt: new Date(Date.now() - 2*24*60*60*1000),
-        reviewUnlockAt: new Date(Date.now() - 24*60*60*1000),
-        transcript: "So today I want to talk about communication and um like it's really important because ...",
-      }
-    });
-
-    await prisma.review.create({
-      data:{
-        recordingId: rec.id,
-        audioScore: 6.8,
-        videoScore: 5.9,
-        transcriptScore: 6.5,
-        overallScore: 6.4,
-        fillerCount: 23,
-        fillerDetails: JSON.stringify({um:12, ah:7, like:4}),
-        paceWpm: 118,
-        pauseCount: 4,
-        eyeContactPct: 42,
-        weaknesses: JSON.stringify(["Filler like/um","Pace too slow","Eye contact 42%","No framework"]),
-        aiFeedback: "You open strong but use 'like' as a crutch. Replace with 1.2s silence. Pace 12% slow.",
-        structureIssue: JSON.stringify(["No clear framework"]),
-        vocabIssues: JSON.stringify(["very x6"]),
-        strongPoints: JSON.stringify(["Strong ending"]),
-      }
-    });
-  }
-
-  const sofia = await prisma.user.upsert({
-    where:{ email:"sofia@lingaux.app"},
-    update:{},
-    create:{ email:"sofia@lingaux.app", name:"Sofia K.", image:"https://i.pravatar.cc/150?img=5", plan:"pro" }
-  });
-
-  const postCount = await prisma.communityPost.count();
-  if (postCount===0){
-    await prisma.communityPost.createMany({
-      data:[
-        { userId: sofia.id, content:"Finally nailed the pause! Thanks to feedback from @Kenji", day:23, likes:89 },
-        { userId: demo.id, content:"Day 11 check-in: working on pace. Feedback?", day:11, likes:34 },
-      ]
-    });
-  }
-
-  const convExists = await prisma.conversation.findFirst();
-  if (!convExists){
-    const conv = await prisma.conversation.create({
-      data:{ participantIds: JSON.stringify([demo.id, sofia.id]), isGroup:false }
-    });
-    await prisma.message.create({
-      data:{ conversationId: conv.id, senderId: sofia.id, content:"Great pause at 2:34! Try 2x more" }
-    });
-  }
+  // NOTE: No demo users, demo recordings, demo posts or demo messages are
+  // seeded on purpose — every account must see only its own real data
+  // (or an honest empty state). Catalog below is real product content.
 
   // Courses — LINGAUX Academy
   const courseCount = await prisma.course.count();
@@ -143,7 +70,7 @@ async function main(){
     await prisma.user.update({ where: { id: u.id }, data: { referralCode: code } }).catch(()=>{});
   }
 
-  console.log("Seed done:", { demo: demo.email });
+  console.log("Seed done: admins + catalog ensured, no demo users created");
 }
 
 main().then(()=>process.exit(0)).catch(e=>{ console.error(e); process.exit(1); });

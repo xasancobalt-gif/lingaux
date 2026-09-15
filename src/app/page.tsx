@@ -45,8 +45,10 @@ export default function LINGAUX() {
   const [authLoading, setAuthLoading] = useState(false);
   const [toast, setToast] = useState<string|null>(null);
   const [topic, setTopic] = useState(topics[0]);
-  const [hasRecorded, setHasRecorded] = useState(true);
-  const [lockHours, setLockHours] = useState(18);
+  // No fake demo state: fresh accounts start with zero recordings and no lock.
+  // Real values load from /api/recordings once authenticated (see effect below).
+  const [hasRecorded, setHasRecorded] = useState(false);
+  const [lockHours, setLockHours] = useState(0);
   const [apiStatus, setApiStatus] = useState<string>("Backend wired: Prisma + Auth.js + Supabase + OpenAI");
   // Live camera
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -59,6 +61,23 @@ export default function LINGAUX() {
   const [transcript, setTranscript] = useState<string|null>(null);
   const [latestRecordings, setLatestRecordings] = useState<any[]>([]);
   const [realReview, setRealReview] = useState<any|null>(null);
+  // Real per-user data (never hardcoded): own recordings, leaderboard, community feed
+  const [myRecordings, setMyRecordings] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [feed, setFeed] = useState<any[]>([]);
+  // ---- Derived real user stats (0/— when fresh, never fake) ----
+  const myXp = (session?.user as any)?.xp || 0;
+  const myLevel = (session?.user as any)?.level || 1;
+  const myStreak = (session?.user as any)?.streak || 0;
+  const myName = session?.user?.name || session?.user?.email?.split("@")[0] || "You";
+  const avatarOf = (name?: string|null)=>{ const c = ((name||"L")[0]||"L").toUpperCase(); return c; };
+  const scoredReviews = myRecordings.map(r=>r.review?.overallScore).filter((s:any)=>typeof s==="number");
+  const avgScore = scoredReviews.length ? scoredReviews.reduce((a:number,b:number)=>a+b,0)/scoredReviews.length : null;
+  const totalSecs = myRecordings.reduce((a:number,r:any)=>a+(r.duration||0),0);
+  const speakTime = totalSecs>=3600 ? `${Math.floor(totalSecs/3600)}h ${Math.round((totalSecs%3600)/60)}m` : `${Math.round(totalSecs/60)}m`;
+  const myEntry = leaderboard.find((e:any)=>e.id===(session?.user as any)?.id);
+  const planDay = myRecordings.length===0 ? 0 : Math.min(myRecordings.length, 30);
+  const planPct = Math.round(Math.min(myRecordings.length,30)/30*100);
   // Refer & Earn
   const [refCode, setRefCode] = useState<string|null>(null);
   const [refLink, setRefLink] = useState<string|null>(null);
@@ -349,6 +368,34 @@ export default function LINGAUX() {
     }).catch(()=>{});
   },[status]);
 
+  // Load the signed-in user's OWN data: recordings (lock + stats), leaderboard, community.
+  // Empty arrays stay empty (honest empty states) — nothing is ever hardcoded.
+  useEffect(()=>{
+    if(status!=="authenticated") return;
+    (async()=>{
+      try{
+        const r = await fetch("/api/recordings?limit=50");
+        const j = await r.json();
+        const recs = r.ok ? (j.recordings||[]) : [];
+        setMyRecordings(recs);
+        setHasRecorded(recs.length>0);
+        const latest = recs[0];
+        if(latest?.reviewUnlockAt){
+          setLockHours(Math.max(0, Math.ceil((new Date(latest.reviewUnlockAt).getTime()-Date.now())/3600000)));
+        } else setLockHours(0);
+        if(latest?.review) setRealReview(latest.review);
+      }catch{}
+      try{
+        const lb = await fetch("/api/leaderboard").then(x=>x.json()).catch(()=>null);
+        if(lb?.leaderboard) setLeaderboard(lb.leaderboard);
+      }catch{}
+      try{
+        const f = await fetch("/api/community?limit=20").then(x=>x.json()).catch(()=>null);
+        if(f?.posts) setFeed(f.posts);
+      }catch{}
+    })();
+  },[status]);
+
   useEffect(()=>{
     if(active==="academy"){
       fetch("/api/courses").then(r=>r.json()).then(j=> setCourses(j.courses||[])).catch(()=>{});
@@ -474,7 +521,7 @@ export default function LINGAUX() {
               </button>
             ) : (
               <button onClick={()=> setShowAuth(true)} className="w-9 h-9 rounded-full glass flex items-center justify-center overflow-hidden border-white/15">
-                <img src="https://i.pravatar.cc/100?img=33" alt="avatar" className="w-full h-full object-cover"/>
+                <span className="font-black">?</span>
               </button>
             )}
           </div>
@@ -494,17 +541,21 @@ export default function LINGAUX() {
         <aside className="hidden xl:flex w-[260px] shrink-0 flex-col gap-4 p-4 sticky top-[64px] h-[calc(100vh-64px)] overflow-y-auto">
           <div className="glass-card rounded-[20px] p-4">
             <div className="flex items-center gap-3">
-              <img src="https://i.pravatar.cc/100?img=33" className="w-10 h-10 rounded-full object-cover"/>
+              {status==="authenticated" && session?.user?.image ? (
+                <img src={session.user.image} className="w-10 h-10 rounded-full object-cover"/>
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-white text-black grid place-items-center font-black">{status==="authenticated" ? avatarOf(session?.user?.name||session?.user?.email) : "?"}</div>
+              )}
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold leading-none">Aarav S.</div>
-                <div className="text-xs text-white/50 truncate">aarav@lingaux.app • {isPro?"Pro":"Free"}</div>
+                <div className="text-sm font-bold leading-none">{status==="authenticated" ? myName : "Guest"}</div>
+                <div className="text-xs text-white/50 truncate">{status==="authenticated" ? `${session?.user?.email} • ${isPro?"Pro":"Free"}` : "Sign in to track progress"}</div>
               </div>
               <span className={`w-2 h-2 rounded-full ${isPro? "bg-emerald-400":"bg-amber-400"} animate-pulse`}/>
             </div>
             <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-              <div className="glass rounded-xl py-2"><div className="text-sm font-bold">23</div><div className="text-[10px] text-white/50">Records</div></div>
-              <div className="glass rounded-xl py-2"><div className="text-sm font-bold">+34%</div><div className="text-[10px] text-white/50">Growth</div></div>
-              <div className="glass rounded-xl py-2"><div className="text-sm font-bold">8.2</div><div className="text-[10px] text-white/50">Score</div></div>
+              <div className="glass rounded-xl py-2"><div className="text-sm font-bold">{status==="authenticated" ? myRecordings.length : 0}</div><div className="text-[10px] text-white/50">Records</div></div>
+              <div className="glass rounded-xl py-2"><div className="text-sm font-bold">{status==="authenticated" ? myXp : 0}</div><div className="text-[10px] text-white/50">XP</div></div>
+              <div className="glass rounded-xl py-2"><div className="text-sm font-bold">{status==="authenticated" ? (avgScore!=null ? avgScore.toFixed(1) : "—") : "—"}</div><div className="text-[10px] text-white/50">Avg score</div></div>
             </div>
           </div>
 
@@ -514,7 +565,6 @@ export default function LINGAUX() {
                 <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${active===t.id ? "bg-white text-black" : "glass"}`}>{t.icon}</span>
                 {t.label}
                 {t.id==="community" && !isPro && <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-amber-400 text-black font-black">PRO</span>}
-                {t.id==="messages" && <span className="ml-auto w-5 h-5 rounded-full bg-red-500 text-white text-[11px] grid place-items-center font-bold">3</span>}
               </button>
             ))}
             {((session?.user as any)?.role==="admin" || (session?.user as any)?.isAdmin) && (
@@ -576,31 +626,33 @@ export default function LINGAUX() {
                     <div className="glass-card rounded-[24px] p-4 md:p-5">
                       <div className="flex items-center justify-between">
                         <div className="text-xs font-bold tracking-widest text-white/60">TODAY&apos;S PROGRESS</div>
-                        <div className="text-xs px-2.5 py-1 rounded-full bg-emerald-500 text-white font-bold">Day 11 / 30</div>
+                        <div className="text-xs px-2.5 py-1 rounded-full bg-emerald-500 text-white font-bold">{status!=="authenticated" ? "Sign in to begin" : planDay===0 ? "Day 0 / 30" : `Day ${planDay} / 30`}</div>
                       </div>
                       <div className="mt-4 grid grid-cols-3 gap-3">
                         {[
-                          {k:"Clarity",v:"8.4",d:"+0.6"},
-                          {k:"Pace",v:"7.9",d:"+0.3"},
-                          {k:"Confidence",v:"8.7",d:"+1.1"},
+                          {k:"Overall",v:realReview?.overallScore},
+                          {k:"Audio",v:realReview?.audioScore},
+                          {k:"Video",v:realReview?.videoScore},
                         ].map(c=>(
                           <div key={c.k} className="glass rounded-2xl p-3 text-center">
                             <div className="text-[11px] text-white/50 font-semibold tracking-widest">{c.k}</div>
-                            <div className="text-xl font-black">{c.v}</div>
-                            <div className="text-[11px] font-bold text-emerald-400">{c.d} this week</div>
+                            <div className="text-xl font-black">{typeof c.v==="number" ? c.v.toFixed(1) : "—"}</div>
+                            <div className="text-[11px] font-bold text-white/40">{typeof c.v==="number" ? "latest review" : "record to begin"}</div>
                           </div>
                         ))}
                       </div>
                       <div className="mt-4 h-2 rounded-full bg-white/10 overflow-hidden flex">
-                        <div className="h-full w-[68%] bg-gradient-to-r from-violet-500 to-indigo-500"/>
-                        <div className="h-full w-[15%] bg-gradient-to-r from-amber-400 to-orange-500"/>
+                        <div className="h-full bg-gradient-to-r from-violet-500 to-indigo-500" style={{width:`${planPct}%`}}/>
                       </div>
-                      <div className="mt-2 flex justify-between text-[11px] text-white/50"><span>Week 2: Vocal Variety</span><span>68%</span></div>
-                      <div className="mt-4 flex items-center gap-3 glass rounded-xl p-3">
-                        <img src="https://i.pravatar.cc/100?img=15" className="w-9 h-9 rounded-full"/>
-                        <div className="flex-1 min-w-0"><div className="text-xs font-bold">Coach Mira left feedback</div><div className="text-xs text-white/60 truncate">&quot;Your pause before the punchline was perfect — do it 2x more.&quot;</div></div>
-                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"/>
-                      </div>
+                      <div className="mt-2 flex justify-between text-[11px] text-white/50"><span>{planDay===0 ? "30-day plan • record your first video" : `${planPct}% of your 30-day plan`}</span><span>{planPct}%</span></div>
+                      {realReview?.aiFeedback ? (
+                        <div className="mt-4 flex items-center gap-3 glass rounded-xl p-3">
+                          <div className="w-9 h-9 rounded-full bg-white text-black grid place-items-center font-black shrink-0">AI</div>
+                          <div className="flex-1 min-w-0"><div className="text-xs font-bold">Latest AI feedback</div><div className="text-xs text-white/60 truncate">{String(realReview.aiFeedback).slice(0,90)}</div></div>
+                        </div>
+                      ) : (
+                        <button onClick={()=>setActive("studio")} className="mt-4 w-full glass rounded-xl p-3 text-sm font-bold hover:bg-white/10 transition">▶ Record your first 5-min video — free</button>
+                      )}
                     </div>
                     {/* floating */}
                     <div className="hidden lg:flex absolute -right-4 -bottom-6 glass-strong rounded-2xl px-4 py-3 items-center gap-3 shadow-xl rotate-[1deg]">
@@ -614,9 +666,9 @@ export default function LINGAUX() {
               {/* Stats */}
               <div className="grid md:grid-cols-3 gap-4">
                 {[
-                  {label:"Daily Streak", value:"7 days", sub:"Best: 21 days • +12% vs last week", icon:"🔥", cta:"Keep streak"},
-                  {label:"Total Speaking Time", value:"4.2 hours", sub:"23 recordings • Avg 11m/session", icon:"⏱", cta:"View history"},
-                  {label:"Community Rank", value:"#342", sub:"Top 18% globally • 12,483 members", icon:"🏆", cta:"Leaderboard"},
+                  {label:"Daily Streak", value: status==="authenticated" ? `${myStreak} day${myStreak===1?"":"s"}` : "—", sub: status==="authenticated" ? (myStreak>0 ? "Keep it burning — record today" : "Record today to start your streak") : "Sign in to track streaks", icon:"🔥", cta:"Keep streak"},
+                  {label:"Total Speaking Time", value: status==="authenticated" ? (myRecordings.length? speakTime : "0m") : "—", sub: status==="authenticated" ? `${myRecordings.length} recording${myRecordings.length===1?"":"s"} • your actual practice` : "Sign in to track practice", icon:"⏱", cta:"View history"},
+                  {label:"Community Rank", value: status==="authenticated" ? (myEntry ? `#${myEntry.rank}` : "—") : "—", sub: status==="authenticated" ? (myEntry ? `${myXp} XP • ${leaderboard.length} ranked` : "Record to enter the rankings") : "Sign in to compete", icon:"🏆", cta:"Leaderboard"},
                 ].map(s=>(
                   <div key={s.label} className="glass-card rounded-2xl p-5 relative overflow-hidden">
                     <div className="absolute right-0 top-0 w-24 h-24 bg-gradient-to-br from-white/5 to-transparent rounded-full blur-2xl"/>
@@ -719,25 +771,37 @@ export default function LINGAUX() {
                         <button onClick={()=>setActive("practice")} className="flex-1 py-2.5 rounded-xl bg-white text-black font-bold text-sm">Start drill</button>
                         <button className="px-4 py-2.5 rounded-xl glass text-sm font-semibold">How?</button>
                       </div>
-                      <div className="mt-3 flex items-center gap-2 text-xs text-white/50"><span className="w-2 h-2 rounded-full bg-emerald-400"/> 4,203 completed today</div>
+                      <div className="mt-3 flex items-center gap-2 text-xs text-white/50"><span className="w-2 h-2 rounded-full bg-emerald-400"/> A fresh 10-min drill every day</div>
                     </div>
                   </div>
                   <div className="glass-card rounded-[24px] p-6">
                     <div className="flex items-center justify-between"><div className="font-bold text-sm">Global Leaderboard</div><span className="text-xs px-2 py-1 rounded-full glass">Live</span></div>
                     <div className="mt-4 space-y-2">
-                      {[
-                        {r:1, n:"Sofia K.", xp:3420, a:"https://i.pravatar.cc/100?img=5"},
-                        {r:2, n:"Kenji T.", xp:3180, a:"https://i.pravatar.cc/100?img=12"},
-                        {r:3, n:"You • Aarav", xp:1240, a:"https://i.pravatar.cc/100?img=33", me:true},
-                        {r:4, n:"Priya M.", xp:1190, a:"https://i.pravatar.cc/100?img=26"},
-                      ].map(p=>(
-                        <div key={p.r} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${p.me? "glass-strong border-amber-400/20":"glass"}`}>
-                          <span className={`w-6 h-6 rounded-full grid place-items-center text-xs font-black ${p.r===1?"bg-amber-400 text-black": p.r===2?"bg-zinc-300 text-black": p.r===3?"bg-amber-600 text-white":"bg-white/10"}`}>{p.r}</span>
-                          <img src={p.a} className="w-7 h-7 rounded-full"/>
-                          <span className="flex-1 text-sm font-semibold">{p.n}</span>
-                          <span className="text-xs font-bold text-amber-300">{p.xp} XP</span>
-                        </div>
-                      ))}
+                      {leaderboard.length===0 ? (
+                        <div className="glass rounded-xl p-4 text-sm text-white/60 text-center">No rankings yet — your first recording puts you on the board.</div>
+                      ) : (
+                        <>
+                          {leaderboard.slice(0,4).map((p:any)=>{
+                            const isMe = p.id===(session?.user as any)?.id;
+                            return (
+                              <div key={p.id||p.rank} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${isMe? "glass-strong border-amber-400/20":"glass"}`}>
+                                <span className={`w-6 h-6 rounded-full grid place-items-center text-xs font-black ${p.rank===1?"bg-amber-400 text-black": p.rank===2?"bg-zinc-300 text-black": p.rank===3?"bg-amber-600 text-white":"bg-white/10"}`}>{p.rank}</span>
+                                {p.image ? <img src={p.image} className="w-7 h-7 rounded-full"/> : <div className="w-7 h-7 rounded-full bg-white text-black grid place-items-center text-xs font-black">{avatarOf(p.name)}</div>}
+                                <span className="flex-1 text-sm font-semibold">{isMe ? `${p.name} (you)` : p.name}</span>
+                                <span className="text-xs font-bold text-amber-300">{p.xp} XP</span>
+                              </div>
+                            );
+                          })}
+                          {myEntry && myEntry.rank>4 && (
+                            <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl glass-strong border-amber-400/20">
+                              <span className="w-6 h-6 rounded-full grid place-items-center text-xs font-black bg-white/10">{myEntry.rank}</span>
+                              <div className="w-7 h-7 rounded-full bg-white text-black grid place-items-center text-xs font-black">{avatarOf(myEntry.name)}</div>
+                              <span className="flex-1 text-sm font-semibold">{myEntry.name} (you)</span>
+                              <span className="text-xs font-bold text-amber-300">{myEntry.xp} XP</span>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1147,37 +1211,41 @@ export default function LINGAUX() {
                   <button onClick={()=>triggerPaywall("community-blur")} className="px-5 py-2.5 rounded-full bg-amber-400 text-black font-bold text-sm">Unlock for ₹199/mo</button>
                 </div>
               )}
+              {feed.length===0 ? (
+                <div className="glass-card rounded-2xl p-10 text-center">
+                  <div className="text-4xl">🌱</div>
+                  <div className="mt-3 font-bold">No posts yet</div>
+                  <div className="mt-1 text-sm text-white/60">{status!=="authenticated" ? "Sign in to see the community feed." : isPro ? "Be the first — post your Day 1 progress video above." : "Progress videos from Pro members will appear here. Upgrade to post your own."}</div>
+                </div>
+              ) : (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[
-                  {u:"Sofia • Day 23", t:"Finally nailed the pause! Thanks to feedback from @Kenji", l:89, c:12, img:"https://i.pravatar.cc/150?img=5", v:"https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=600&auto=format&fit=crop&q=60"},
-                  {u:"Kenji • Day 11", t:"My before/after - filler words 23 → 4 in 2 weeks!", l:142, c:28, img:"https://i.pravatar.cc/150?img=12", v:"https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=60"},
-                  {u:"Aarav • Day 11", t:"Day 11 check-in: working on pace. Feedback?", l:34, c:7, img:"https://i.pravatar.cc/150?img=33", v:"https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&auto=format&fit=crop&q=60"},
-                  {u:"Priya • Day 30", t:"30 days done. Got promoted. This works.", l:210, c:41, img:"https://i.pravatar.cc/150?img=26", v:"https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=600&auto=format&fit=crop&q=60"},
-                  {u:"Marcus • Day 7", t:"Week 1 drill - killing “like”. Harder than gym.", l:56, c:9, img:"https://i.pravatar.cc/150?img=15", v:"https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&auto=format&fit=crop&q=60"},
-                  {u:"Elena • Day 18", t:"Storytelling challenge entry - The failed pitch", l:98, c:19, img:"https://i.pravatar.cc/150?img=32", v:"https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=600&auto=format&fit=crop&q=60"},
-                ].map(p=>(
-                  <div key={p.u} className="glass-card rounded-2xl overflow-hidden">
+                {feed.map((p:any)=>(
+                  <div key={p.id} className="glass-card rounded-2xl overflow-hidden">
                     <div className="h-44 relative overflow-hidden bg-black">
-                      <img src={p.v} className={`w-full h-full object-cover ${!isPro?"blur-[8px] scale-110":""}`}/>
+                      {p.videoUrl ? (
+                        <img src={p.videoUrl} className={`w-full h-full object-cover ${!isPro?"blur-[8px] scale-110":""}`}/>
+                      ) : (
+                        <div className="w-full h-full grid place-items-center bg-gradient-to-br from-violet-600/40 to-indigo-600/20"><span className="text-4xl">🎙</span></div>
+                      )}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"/>
-                      <button className="absolute inset-0 grid place-items-center"><span className="w-11 h-11 rounded-full bg-white text-black grid place-items-center shadow-xl">▶</span></button>
                       {!isPro && <span className="absolute top-3 right-3 text-xs px-2.5 py-1 rounded-full bg-black/70 backdrop-blur border border-white/15 text-white font-bold">🔒 Pro to watch</span>}
-                      <span className="absolute bottom-3 left-3 text-xs px-2 py-1 rounded-full bg-black/60 backdrop-blur text-white/90 border border-white/10">0:47 • 1080p</span>
+                      {p.day ? <span className="absolute bottom-3 left-3 text-xs px-2 py-1 rounded-full bg-black/60 backdrop-blur text-white/90 border border-white/10">Day {p.day}</span> : null}
                     </div>
                     <div className="p-4">
                       <div className="flex items-center gap-2">
-                        <img src={p.img} className="w-7 h-7 rounded-full"/>
-                        <span className="text-xs font-bold">{p.u}</span>
-                        <span className="ml-auto text-xs px-2 py-1 rounded-full glass">Day 11</span>
+                        {p.user?.image ? <img src={p.user.image} className="w-7 h-7 rounded-full"/> : <div className="w-7 h-7 rounded-full bg-white text-black grid place-items-center text-xs font-black">{avatarOf(p.user?.name)}</div>}
+                        <span className="text-xs font-bold">{p.user?.name || "Member"}{p.day ? ` • Day ${p.day}` : ""}</span>
+                        <span className="ml-auto text-xs text-white/40">{p.createdAt ? new Date(p.createdAt).toLocaleDateString() : ""}</span>
                       </div>
-                      <div className="mt-2 text-sm leading-relaxed text-white/85">{p.t}</div>
+                      <div className="mt-2 text-sm leading-relaxed text-white/85">{p.content}</div>
                       <div className="mt-3 flex items-center gap-3 text-xs text-white/50">
-                        <span>♡ {p.l}</span><span>💬 {p.c}</span><span className="ml-auto">2h ago</span>
+                        <span>♡ {p.likes||0}</span><span>💬 {(p.comments||[]).length}</span>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
+              )}
             </div>
           )}
 
@@ -1194,18 +1262,11 @@ export default function LINGAUX() {
                     <input placeholder="Search conversations..." className="flex-1 glass rounded-full px-4 py-2 text-sm bg-white/[0.06] border-white/10 placeholder:text-white/40 outline-none focus:border-white/20"/>
                   </div>
                   <div className="mt-2 space-y-1 overflow-y-auto pr-1">
-                    {[
-                      {n:"Mira • Coach", m:"Great pause at 2:34! Try 2x more", t:"2m", unread:2, a:"https://i.pravatar.cc/100?img=9"},
-                      {n:"Sofia K.", m:"Loved your Day 11 video 🔥", t:"1h", unread:1, a:"https://i.pravatar.cc/100?img=5"},
-                      {n:"Practice Pod #3", m:"Kenji: who's up for live room tonight?", t:"3h", unread:3, a:"https://i.pravatar.cc/100?img=12"},
-                      {n:"Priya M.", m:"You: Thanks for feedback!", t:"1d", unread:0, a:"https://i.pravatar.cc/100?img=26"},
-                    ].map(c=>(
-                      <div key={c.n} className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer ${c.unread? "glass-strong border-amber-400/15":"hover:bg-white/[0.04]"}`}>
-                        <img src={c.a} className="w-9 h-9 rounded-full"/>
-                        <div className="flex-1 min-w-0"><div className="text-sm font-bold leading-none truncate">{c.n}</div><div className="text-xs text-white/60 truncate">{c.m}</div></div>
-                        <div className="text-right"><div className="text-xs text-white/40">{c.t}</div>{c.unread>0 && <div className="mt-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs grid place-items-center font-bold ml-auto">{c.unread}</div>}</div>
-                      </div>
-                    ))}
+                    <div className="glass rounded-xl p-6 text-center">
+                      <div className="text-3xl">✉</div>
+                      <div className="mt-2 text-sm font-bold">No conversations yet</div>
+                      <div className="mt-1 text-xs text-white/60 leading-relaxed">{status!=="authenticated" ? "Sign in to message." : isPro ? "Your private chats will appear here." : "Private 1:1 chat is a Pro feature — upgrade to start messaging."}</div>
+                    </div>
                   </div>
                   <div className="mt-auto pt-3 border-t border-white/10">
                     <div className="glass rounded-xl p-3 flex items-start gap-2">
@@ -1216,17 +1277,13 @@ export default function LINGAUX() {
                 </div>
                 <div className="glass-card rounded-2xl flex flex-col overflow-hidden">
                   <div className="p-4 flex items-center gap-3 border-b border-white/10">
-                    <img src="https://i.pravatar.cc/100?img=9" className="w-9 h-9 rounded-full"/>
-                    <div><div className="font-bold text-sm">Mira • Coach</div><div className="text-xs text-emerald-400">● Online • Usually replies in 2h</div></div>
-                    <button className="ml-auto px-3 py-1.5 rounded-full glass text-xs font-semibold">View profile</button>
+                    <div className="w-9 h-9 rounded-full bg-white/10 grid place-items-center font-black">?</div>
+                    <div><div className="font-bold text-sm">No conversation selected</div><div className="text-xs text-white/50">Your chats will open here</div></div>
                   </div>
-                  <div className="flex-1 p-4 space-y-3 overflow-y-auto bg-black/20">
-                    <div className="max-w-[78%] glass rounded-2xl rounded-bl-sm p-3 text-sm">Aarav, your transcript shows <b>no framework</b> — try PREP: Point → Reason → Example → Point. Want a 5-min drill on it?</div>
-                    <div className="max-w-[78%] ml-auto bg-white text-black rounded-2xl rounded-br-sm p-3 text-sm">Yes please! Also — is my eye contact really 42%? Feels higher</div>
-                    <div className="max-w-[78%] glass rounded-2xl rounded-bl-sm p-3 text-sm">It is 42% measured at lens. Trick: stick a tiny smiley next to camera. Your brain will look. Try tomorrow&apos;s record.</div>
-                    <div className="glass rounded-xl p-3 flex items-center gap-2 border-amber-400/20">
-                      <span className="text-xs px-2 py-1 rounded-full bg-amber-400 text-black font-bold">AI Moderation</span>
-                      <span className="text-xs text-white/60">This chat is scanned for vulgar/sexual/harassment. Be respectful.</span>
+                  <div className="flex-1 p-4 space-y-3 overflow-y-auto bg-black/20 grid place-items-center">
+                    <div className="text-center max-w-[280px]">
+                      <div className="text-sm font-bold">Nothing here yet</div>
+                      <div className="mt-1 text-xs text-white/60 leading-relaxed">Start a private chat from a community post or your practice pod. All chats are scanned for vulgar/sexual/harassment — 3 strikes = ban.</div>
                     </div>
                   </div>
                   <div className="p-3 border-t border-white/10 flex gap-2">
@@ -1245,25 +1302,29 @@ export default function LINGAUX() {
               <div className="grid md:grid-cols-[1.1fr_0.9fr] gap-6">
                 <div className="glass-card rounded-2xl p-6">
                   <div className="flex items-center gap-4">
-                    <img src="https://i.pravatar.cc/100?img=33" className="w-16 h-16 rounded-2xl object-cover"/>
+                    {session?.user?.image ? (
+                      <img src={session.user.image} className="w-16 h-16 rounded-2xl object-cover"/>
+                    ) : (
+                      <div className="w-16 h-16 rounded-2xl bg-white text-black grid place-items-center text-2xl font-black">{avatarOf(session?.user?.name||session?.user?.email)}</div>
+                    )}
                     <div className="flex-1">
-                      <div className="font-bold text-lg leading-none">Aarav S.</div>
-                      <div className="text-sm text-white/60">aarav@lingaux.app • Joined Sep 2025</div>
+                      <div className="font-bold text-lg leading-none">{status==="authenticated" ? myName : "Not signed in"}</div>
+                      <div className="text-sm text-white/60">{status==="authenticated" ? session?.user?.email : "Sign in to see your profile"}</div>
                       <div className="mt-2 flex gap-2">
                         <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${isPro? "bg-amber-400 text-black":"glass text-white"}`}>{isPro? "◆ PRO":"FREE"}</span>
-                        <span className="text-xs px-2.5 py-1 rounded-full glass">Level 8 • 1,240 XP</span>
+                        <span className="text-xs px-2.5 py-1 rounded-full glass">Level {status==="authenticated" ? myLevel : "—"} • {status==="authenticated" ? myXp.toLocaleString() : 0} XP</span>
                       </div>
                     </div>
                   </div>
                   <div className="mt-6 grid grid-cols-3 gap-3 text-center">
-                    <div className="glass rounded-xl p-3"><div className="text-lg font-black">23</div><div className="text-xs text-white/50">Records</div></div>
-                    <div className="glass rounded-xl p-3"><div className="text-lg font-black">11</div><div className="text-xs text-white/50">Day streak</div></div>
-                    <div className="glass rounded-xl p-3"><div className="text-lg font-black">8.2</div><div className="text-xs text-white/50">Avg score</div></div>
+                    <div className="glass rounded-xl p-3"><div className="text-lg font-black">{status==="authenticated" ? myRecordings.length : 0}</div><div className="text-xs text-white/50">Records</div></div>
+                    <div className="glass rounded-xl p-3"><div className="text-lg font-black">{status==="authenticated" ? myStreak : 0}</div><div className="text-xs text-white/50">Day streak</div></div>
+                    <div className="glass rounded-xl p-3"><div className="text-lg font-black">{status==="authenticated" ? (avgScore!=null ? avgScore.toFixed(1) : "—") : "—"}</div><div className="text-xs text-white/50">Avg score</div></div>
                   </div>
                   <div className="mt-6 space-y-2">
-                    <div className="flex justify-between text-sm"><span className="text-white/60">Email</span><span className="font-medium">aarav@lingaux.app</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-white/60">Email</span><span className="font-medium">{status==="authenticated" ? session?.user?.email : "—"}</span></div>
                     <div className="flex justify-between text-sm"><span className="text-white/60">Password</span><button className="text-xs px-3 py-1 rounded-full glass">Change</button></div>
-                    <div className="flex justify-between text-sm"><span className="text-white/60">Two-factor</span><span className="text-emerald-400 text-xs font-bold">● Enabled</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-white/60">Two-factor</span><span className="text-white/50 text-xs font-bold">Set up in Security</span></div>
                   </div>
                 </div>
                 <div className="space-y-4">
@@ -1280,7 +1341,7 @@ export default function LINGAUX() {
                       {!isPro ? (
                         <button onClick={()=>triggerPaywall("profile")} className="mt-4 w-full py-3 rounded-xl bg-white text-black font-black">Upgrade Now</button>
                       ):(
-                        <button onClick={()=>{setIsProLocal(false); setToast("Downgraded to Free — for demo"); setTimeout(()=>setToast(null),2000);}} className="mt-4 w-full py-3 rounded-xl glass font-bold">Manage billing • Downgrade</button>
+                        <button onClick={()=>{setIsProLocal(false); setToast("Downgraded to Free"); setTimeout(()=>setToast(null),2000);}} className="mt-4 w-full py-3 rounded-xl glass font-bold">Manage billing • Downgrade</button>
                       )}
                       <div className="mt-3 text-xs text-white/40 text-center">PayPal • Razorpay UPI • Cards • Bank Transfer • GST invoice</div>
                     </div>

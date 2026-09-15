@@ -144,6 +144,7 @@ function getNextAuth() {
               (token as any).plan = dbUser.plan;
               (token as any).xp = dbUser.xp;
               (token as any).level = dbUser.level;
+              (token as any).streak = (dbUser as any).streak || 0;
               (token as any).role = dbUser.role;
               if (dbUser.email && isAdmin(dbUser.email) && dbUser.role !== "admin") {
                 await prisma.user.update({ where: { id: dbUser.id }, data: { role: "admin", plan: "pro" } }).catch(()=>{});
@@ -158,6 +159,9 @@ function getNextAuth() {
             if (dbUser) {
               (token as any).role = dbUser.role;
               (token as any).plan = dbUser.plan;
+              (token as any).xp = dbUser.xp;
+              (token as any).level = dbUser.level;
+              (token as any).streak = (dbUser as any).streak || 0;
             }
           } catch {}
         }
@@ -172,6 +176,7 @@ function getNextAuth() {
           (session.user as any).plan = (token as any).plan || "free";
           (session.user as any).xp = (token as any).xp || 0;
           (session.user as any).level = (token as any).level || 1;
+          (session.user as any).streak = (token as any).streak || 0;
           (session.user as any).role = (token as any).role || "user";
           (session.user as any).isAdmin = (token as any).role === "admin" || isAdmin(token.email as string);
         }
