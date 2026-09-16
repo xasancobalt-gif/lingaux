@@ -4,7 +4,7 @@ import { isAdmin, getAdminEmails } from "@/lib/admin";
 
 // GET /api/debug/auth — self-diagnosis for email auth failures (NO secrets returned)
 export async function GET() {
-  const out: Record<string, any> = { ts: new Date().toISOString() };
+  const out: Record<string, any> = { ts: new Date().toISOString(), buildSha: process.env.VERCEL_GIT_COMMIT_SHA || null };
 
   const maskHost = (u?: string) => {
     if (!u) return null;

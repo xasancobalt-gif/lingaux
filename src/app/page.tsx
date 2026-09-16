@@ -589,7 +589,7 @@ export default function LINGAUX() {
           </div>
 
           <div className="text-[11px] text-white/30 px-2 leading-relaxed">
-            Health: <span className="text-emerald-400">● All systems operational</span><br/> Need help? support@lingaux.app
+             Health: <span className="text-emerald-400">API connected</span><br/> Need help? support@lingaux.app
           </div>
         </aside>
 
@@ -612,7 +612,7 @@ export default function LINGAUX() {
                       <span className="text-gradient-gold">in 30 days.</span> <span className="text-gradient-neon">For real.</span>
                     </h1>
                     <p className="mt-3 text-white/65 text-[14px] md:text-[15px] leading-relaxed max-w-[560px]">
-                      Record 5 mins. Wait 24h. Triple-scan with AI. Fix 1 weakness/week. Science-backed loop — now your OS. Solve career, social & creator anxiety in one place.
+                      Record for 5 minutes. Wait 24h. Triple-scan with AI. Focus on one weakness each week. A simple, science-backed loop — now your OS. Improve career, social & creator communication in one place.
                     </p>
                     <div className="mt-6 flex flex-wrap gap-3">
                       <button onClick={()=> setActive("studio")} className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white text-black font-bold text-sm hover:bg-zinc-100 transition">
@@ -691,11 +691,11 @@ export default function LINGAUX() {
               {/* Refer & Earn */}
               <div className="glass-card rounded-[24px] p-6 border-amber-400/20 relative overflow-hidden">
                 <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-gradient-to-br from-amber-400/20 to-orange-500/10 blur-2xl"/>
-                <div className="relative flex flex-wrap items-start justify-between gap-4">
+                  <div className="relative flex flex-wrap items-start justify-between gap-4">
                   <div>
-                    <div className="inline-flex items-center gap-2 text-xs font-black tracking-widest text-amber-300">◆ REFER & EARN • 80 COINS = 80RS</div>
+                    <div className="inline-flex items-center gap-2 text-xs font-black tracking-widest text-amber-300">◆ REFER & EARN • 80 coins = ₹80 LINGAUX credit</div>
                     <h3 className="mt-1 font-serif text-xl font-bold">Invite friends, earn for Pro</h3>
-                    <p className="text-sm text-white/60 mt-1">1 signup = 80 coins. Coins work only on LINGAUX for subscriptions & products (1 coin = 1rs).</p>
+                    <p className="text-sm text-white/60 mt-1">1 signup = 80 coins (₹80 LINGAUX credit). Coins are usable only on LINGAUX for subscriptions & products.</p>
                   </div>
                   <div className="glass rounded-xl px-4 py-2 text-center">
                     <div className="text-xs text-white/50">Wallet</div><div className="text-xl font-black text-amber-300">{refCoins} coins</div><div className="text-xs text-white/40">{refCount} referrals</div>
@@ -711,7 +711,7 @@ export default function LINGAUX() {
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2 text-xs">
                   <span className="px-3 py-1 rounded-full glass">Use coins at checkout: choose “Pay with coins”</span>
-                  <span className="px-3 py-1 rounded-full glass">Shop: 1:1 Coach 999rs, PDF 499rs etc.</span>
+                  <span className="px-3 py-1 rounded-full glass">Shop: 1:1 coaching ₹999 (coins accepted), guides from ₹499, and more</span>
                 </div>
               </div>
 
@@ -726,10 +726,10 @@ export default function LINGAUX() {
                 </div>
                 <div className="mt-6 grid md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
-                    {t:"Career & Interviews", d:"STAR answers, salary negotiation, executive presence", m:"8.9/10 avg improvement", g:"from-violet-500 to-indigo-500"},
-                    {t:"Social & Confidence", d:"Small talk, networking, dating conversations", m:"+42% confidence in 2 weeks", g:"from-emerald-500 to-teal-500"},
-                    {t:"Creator & Voice", d:"Reels, podcasts, pitching with vocal variety", m:"2.3x viewer retention", g:"from-amber-500 to-orange-500"},
-                    {t:"Leadership", d:"Meetings, storytelling, difficult feedback", m:"Trusted by 300+ teams", g:"from-pink-500 to-rose-500"},
+                    {t:"Career & Interviews", d:"STAR answers, salary negotiation, executive presence", m:"What you'll learn", g:"from-violet-500 to-indigo-500"},
+                    {t:"Social & Confidence", d:"Small talk, networking, dating conversations", m:"What you'll learn", g:"from-emerald-500 to-teal-500"},
+                    {t:"Creator & Voice", d:"Reels, podcasts, pitching with vocal variety", m:"What you'll learn", g:"from-amber-500 to-orange-500"},
+                    {t:"Leadership", d:"Meetings, storytelling, difficult feedback", m:"What you'll learn", g:"from-pink-500 to-rose-500"},
                   ].map(card=>(
                     <div key={card.t} className="rounded-2xl p-[1px] bg-gradient-to-br from-white/15 to-white/5">
                       <div className="rounded-2xl glass p-4 h-full">
@@ -1458,7 +1458,7 @@ export default function LINGAUX() {
                 <div>
                   <div className="inline-flex items-center gap-2 text-xs font-black tracking-widest text-amber-300"><span>◆</span> LINGAUX PRO • UNLOCK EVERYTHING</div>
                   <h3 className="mt-2 font-serif text-2xl md:text-3xl font-bold leading-none">Go Pro. <span className="text-gradient-gold">Transform faster.</span></h3>
-                  <p className="text-sm text-white/60 mt-2">Triggered from: <span className="text-white font-semibold">{paywallSource}</span> • Join 8,200+ pros • Cancel anytime</p>
+                  <p className="text-sm text-white/60 mt-2">Triggered from: <span className="text-white font-semibold">{paywallSource}</span> • Join our community • Cancel anytime</p>
                 </div>
                 <button onClick={()=>setShowPaywall(false)} className="w-9 h-9 rounded-full glass grid place-items-center shrink-0">✕</button>
               </div>
@@ -1490,7 +1490,7 @@ export default function LINGAUX() {
                     {t:"Stripe", d:"Cards • Apple Pay • Google Pay", icon:"💳", id:"stripe"},
                     {t:"PayPal", d:"Global • Buyer protection", icon:"🅿️", id:"paypal"},
                     {t:"Razorpay", d:"UPI • NetBanking • Wallets • Cards (India)", icon:"🇮🇳", id:"razorpay"},
-                    {t:"Coins", d:`Wallet: ${refCoins} coins • 80=80rs • Platform only`, icon:"◆", id:"coins"},
+                    {t:"Coins", d:`Wallet: ${refCoins} coins • 80 coins = ₹80 LINGAUX credit • Platform only`, icon:"◆", id:"coins"},
                     {t:"Bank Transfer", d:"NEFT/IMPS • Manual verification in 12h", icon:"🏦", id:"bank"},
                   ].map(m=>(
                     <button key={m.t} onClick={()=> handleSubscribe(m.id as any, "monthly")} className="text-left glass rounded-2xl p-4 flex gap-3 hover:bg-white hover:text-black transition group">
@@ -1527,7 +1527,7 @@ export default function LINGAUX() {
       <footer className="border-t border-white/5 glass mt-8">
         <div className="max-w-[1600px] mx-auto px-6 py-6 flex flex-wrap items-center justify-between gap-4 text-xs text-white/40">
           <span>© 2026 LINGAUX Labs • Made for global speakers • <a className="text-white/70 hover:text-white">Privacy</a> • <a className="text-white/70 hover:text-white">Terms</a> • <a className="text-white/70 hover:text-white">Refund</a></span>
-          <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"/> All systems operational • Edge • 4ms</span>
+          <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"/> LINGAUX is live — check <code className="bg-white/10 px-1.5 py-0.5 rounded">/api/debug/auth</code> for real status</span>
         </div>
       </footer>
     </div>
