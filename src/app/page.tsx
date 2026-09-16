@@ -989,7 +989,7 @@ export default function LINGAUX() {
                       const r = await fetch(`/api/review?recordingId=${latestRecordings[0].id}`);
                       const j = await r.json();
                       if(j.review) { setRealReview(j.review); setToast("Review loaded from DB"); }
-                      else if(j.locked) setToast(`Locked: ${j.hoursLeft}h left (use ?force=1 for demo)`);
+                      else if(j.locked) setToast(`Locked: ${j.hoursLeft}h left before review unlocks`);
                       else setToast(j.error || "No review");
                       setTimeout(()=>setToast(null),3000);
                     }} className="px-4 py-2 rounded-full bg-white text-black text-xs font-bold">Load Real Review</button>
