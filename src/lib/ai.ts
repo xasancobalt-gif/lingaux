@@ -42,7 +42,7 @@ export function mockTripleScan(topic: string, durationSec: number): TripleScanRe
   const overall = Number(((audioScore + videoScore + transcriptScore) / 3).toFixed(1));
 
   return {
-    transcript: `So today I want to talk about ${topic.toLowerCase()} and um like it's really important because ... [mock transcript, ${durationSec}s, ${Math.floor(durationSec/60*130)} words] ... The first point is confidence. Confidence is key. When I pitched to my manager last quarter, I froze. That's when I learned structure matters. So my takeaway is: prepare one story, one framework.`,
+    transcript: `So today I want to talk about ${topic.toLowerCase()} and um like it's really important because ... [demo preview — AI transcription unavailable] ... The first point is confidence. Confidence is key. When I pitched to my manager last quarter, I froze. That's when I learned structure matters. So my takeaway is: prepare one story, one framework.`,
     fillerCount: filler,
     fillerDetails: { um, ah, like },
     paceWpm: pace,

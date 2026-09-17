@@ -44,6 +44,11 @@ export default function LINGAUX() {
   const [need2FA, setNeed2FA] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [toast, setToast] = useState<string|null>(null);
+  // OAuth buttons actually configured server-side (never show dead providers)
+  const [authProviders, setAuthProviders] = useState<string[]>(["credentials"]);
+  useEffect(()=>{
+    fetch("/api/auth/providers").then(r=>r.json()).then(j=>setAuthProviders(Object.keys(j || {}))).catch(()=>{});
+  },[]);
   const [topic, setTopic] = useState(topics[0]);
   // No fake demo state: fresh accounts start with zero recordings and no lock.
   // Real values load from /api/recordings once authenticated (see effect below).
@@ -223,10 +228,7 @@ export default function LINGAUX() {
         const j=await res.json();
         if(!res.ok){
           if(j.code==="NOT_CONFIGURED"){
-            setToast("PayPal keys not set — mock pro unlock for demo");
-            const mock=await fetch("/api/subscription",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({provider:"paypal",plan,amount:19900,currency:"USD"})});
-            const mj=await mock.json(); if(!mock.ok) throw new Error(mj.error);
-            setIsProLocal(true); setToast(`Mock Pro — ${plan} via PayPal 🎉`); setShowPaywall(false); setTimeout(()=>window.location.reload(),1200);
+            setToast("Online payments launching soon — pay with coins or contact support"); setTimeout(()=>setToast(null),3500);
             return;
           }
           throw new Error(j.error);
@@ -244,7 +246,7 @@ export default function LINGAUX() {
       try{
         const res=await fetch("/api/subscription",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({provider,plan,amount:19900,currency:"INR"})});
         const j=await res.json(); if(!res.ok) throw new Error(j.error);
-        setToast("Bank transfer pending — verify in 12h (mock)"); setShowPaywall(false); setTimeout(()=>setToast(null),3000);
+        setToast("Bank transfer pending — verify in 12h"); setShowPaywall(false); setTimeout(()=>setToast(null),3000);
       }catch(e:any){ setToast(e.message); }
       return;
     }
@@ -255,11 +257,7 @@ export default function LINGAUX() {
         const j=await res.json();
         if(!res.ok){
           if(j.code==="NOT_CONFIGURED"){
-            // Fallback mock
-            setToast("Stripe keys not set — using mock pro unlock for demo");
-            const mock=await fetch("/api/subscription",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({provider:"stripe",plan,amount:1900,currency:"usd"})});
-            const mj=await mock.json(); if(!mock.ok) throw new Error(mj.error);
-            setIsProLocal(true); setToast(`Mock Pro unlocked — ${plan} 🎉`); setShowPaywall(false); setTimeout(()=>window.location.reload(),1200);
+            setToast("Online payments launching soon — pay with coins or contact support"); setTimeout(()=>setToast(null),3500);
             return;
           }
           throw new Error(j.error);
@@ -275,10 +273,7 @@ export default function LINGAUX() {
         const j=await res.json();
         if(!res.ok){
           if(j.code==="NOT_CONFIGURED"){
-            setToast("Razorpay keys not set — mock pro unlock");
-            const mock=await fetch("/api/subscription",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({provider:"razorpay",plan,amount:19900,currency:"INR"})});
-            const mj=await mock.json(); if(!mock.ok) throw new Error(mj.error);
-            setIsProLocal(true); setToast(`Mock Pro — ${plan} via UPI 🎉`); setShowPaywall(false); setTimeout(()=>window.location.reload(),1200);
+            setToast("Online payments launching soon — pay with coins or contact support"); setTimeout(()=>setToast(null),3500);
             return;
           }
           throw new Error(j.error);
@@ -774,7 +769,7 @@ export default function LINGAUX() {
                       <div className="mt-1 text-sm text-white/60">Replace “umm” with 1.5s silence. Record 3 takes. AI detects hesitation.</div>
                       <div className="mt-4 flex gap-2">
                         <button onClick={()=>setActive("practice")} className="flex-1 py-2.5 rounded-xl bg-white text-black font-bold text-sm">Start drill</button>
-                        <button className="px-4 py-2.5 rounded-xl glass text-sm font-semibold">How?</button>
+                        <button onClick={()=>{ setToast("Today's drill: replace every 'umm' with 1.5s of silence. Record 3 takes in Studio — AI scores hesitation."); setTimeout(()=>setToast(null),4000); }} className="px-4 py-2.5 rounded-xl glass text-sm font-semibold">How?</button>
                       </div>
                       <div className="mt-3 flex items-center gap-2 text-xs text-white/50"><span className="w-2 h-2 rounded-full bg-emerald-400"/> A fresh 10-min drill every day</div>
                     </div>
@@ -888,7 +883,7 @@ export default function LINGAUX() {
                     {cameraError && <div className="mt-3 glass rounded-xl p-3 text-xs text-amber-300 border-amber-400/20">⚠ {cameraError} — Use Chrome/Edge, allow permissions, or try “New topic ↻” to retry.</div>}
                     {transcript && (
                       <div className="mt-3 glass rounded-xl p-3">
-                        <div className="text-xs font-black tracking-widest text-white/50">TRANSCRIPT • WHISPER {process.env.NEXT_PUBLIC_SUPABASE_URL ? "" : "(mock if no OPENAI_API_KEY)"}</div>
+                        <div className="text-xs font-black tracking-widest text-white/50">TRANSCRIPT • WHISPER</div>
                         <div className="mt-2 text-xs leading-relaxed text-white/80 line-clamp-3">{transcript}</div>
                       </div>
                     )}
@@ -1398,17 +1393,19 @@ export default function LINGAUX() {
                 <button onClick={()=>setShowAuth(false)} className="w-8 h-8 rounded-full glass grid place-items-center">✕</button>
               </div>
 
-              <div className="mt-5 grid grid-cols-3 gap-2">
+              {["google","apple","linkedin"].some(p=>authProviders.includes(p)) && (
+              <div className="mt-5 flex gap-2">
                 {[
                   {k:"Google", sub:"One tap", id:"google"},
                   {k:"Apple", sub:"Face ID", id:"apple"},
                   {k:"LinkedIn", sub:"For career", id:"linkedin"},
-                ].map(p=>(
-                  <button key={p.k} onClick={()=>handleOAuth(p.id as any)} className="glass rounded-xl py-2.5 text-center hover:bg-white hover:text-black transition group">
+                ].filter(p=>authProviders.includes(p.id)).map(p=>(
+                  <button key={p.k} onClick={()=>handleOAuth(p.id as any)} className="flex-1 glass rounded-xl py-2.5 text-center hover:bg-white hover:text-black transition group">
                     <div className="text-xs font-black">{p.k}</div><div className="text-[11px] opacity-60 group-hover:opacity-60">{p.sub}</div>
                   </button>
                 ))}
               </div>
+              )}
 
               <div className="my-4 flex items-center gap-3"><div className="h-px flex-1 bg-white/10"/><span className="text-xs text-white/40">or continue with email</span><div className="h-px flex-1 bg-white/10"/></div>
 
@@ -1426,20 +1423,19 @@ export default function LINGAUX() {
                 {need2FA && (
                   <input value={twoFactorCode} onChange={e=>setTwoFactorCode(e.target.value.replace(/\D/g,"").slice(0,6))} placeholder="2FA code • 6 digits (if enabled)" inputMode="numeric" className="w-full glass rounded-xl px-4 py-3 text-sm bg-amber-500/10 border-amber-400/30 placeholder:text-white/40 outline-none focus:border-amber-400/50"/>
                 )}
-                <div className="flex items-center justify-between text-xs">
-                  <label className="flex items-center gap-2 text-white/60"><input type="checkbox" className="rounded"/> Remember me</label>
-                  <a className="text-white hover:underline">Forgot password?</a>
+                <div className="flex items-center justify-end text-xs">
+                  <Link href="/forgot-password" className="text-white hover:underline">Forgot password?</Link>
                 </div>
                 <button disabled={authLoading} onClick={()=> authMode==="signup" ? handleRegister() : handleCredentialsLogin()} className="w-full py-3 rounded-xl bg-white text-black font-black disabled:opacity-60">
                   {authLoading ? "Please wait..." : need2FA ? "Verify 2FA & Sign in →" : authMode==="signup" ? "Create account →" : "Sign in →"}
                 </button>
-                <button disabled={authLoading} onClick={handleMagicLink} className="w-full py-3 rounded-xl glass font-bold text-sm">✉ Send magic link (passwordless)</button>
+                <button disabled={authLoading} onClick={handleMagicLink} style={authProviders.includes("email")?undefined:{display:"none"}} className="w-full py-3 rounded-xl glass font-bold text-sm">✉ Send magic link (passwordless)</button>
                 <div className="text-xs text-white/40 leading-relaxed text-center">
                   By continuing you agree to Terms & Privacy. We allow paste + password managers • <span className="text-white/70">WCAG AA Auth</span>. OAuth = no cognitive test needed.
                 </div>
                 <div className="glass rounded-xl p-3 flex items-center gap-2">
-                  <span className="text-xs px-2 py-1 rounded-full bg-white text-black font-bold">OTP</span>
-                  <span className="text-xs text-white/60">India: Phone OTP via RazorpayX • UPI users can login with number</span>
+                  <span className="text-xs px-2 py-1 rounded-full bg-white text-black font-bold">UPI</span>
+                  <span className="text-xs text-white/60">UPI • Cards • Netbanking accepted at checkout</span>
                 </div>
               </div>
             </div>
@@ -1507,7 +1503,7 @@ export default function LINGAUX() {
                     <span>✓ All Academy courses</span><span>✓ Remove blur + export</span>
                   </div>
                 </div>
-                <div className="mt-3 text-xs text-white/40 text-center">Secure • GST invoice • 7-day refund • support@lingaux.app • UPI: lingaux@razorpay</div>
+                <div className="mt-3 text-xs text-white/40 text-center">Secure checkout • 7-day refund • UPI • Cards • Netbanking</div>
               </div>
             </div>
           </div>
@@ -1526,7 +1522,7 @@ export default function LINGAUX() {
       {/* FOOTER mini */}
       <footer className="border-t border-white/5 glass mt-8">
         <div className="max-w-[1600px] mx-auto px-6 py-6 flex flex-wrap items-center justify-between gap-4 text-xs text-white/40">
-          <span>© 2026 LINGAUX Labs • Made for global speakers • <a className="text-white/70 hover:text-white">Privacy</a> • <a className="text-white/70 hover:text-white">Terms</a> • <a className="text-white/70 hover:text-white">Refund</a></span>
+          <span>© 2026 LINGAUX Labs • Made for global speakers • <Link href="/privacy" className="text-white/70 hover:text-white">Privacy</Link> • <Link href="/terms" className="text-white/70 hover:text-white">Terms</Link> • <Link href="/refund" className="text-white/70 hover:text-white">Refund</Link></span>
           <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"/> LINGAUX is live — check <code className="bg-white/10 px-1.5 py-0.5 rounded">/api/debug/auth</code> for real status</span>
         </div>
       </footer>

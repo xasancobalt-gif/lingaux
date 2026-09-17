@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       // Mock — deterministic from topic + size
       let hash = 0;
       for (let i = 0; i < topic.length; i++) hash = (hash * 31 + topic.charCodeAt(i)) % 1000;
-      const mock = `So today I want to talk about ${topic.toLowerCase()} and um like it's really important because ... [mock transcript — set OPENAI_API_KEY for real Whisper, file ${file.name} ${Math.round(file.size/1024)}KB] The first point is confidence. When I pitched to my manager, I froze. That's when I learned structure matters.`;
+      const mock = `So today I want to talk about ${topic.toLowerCase()} and um like it's really important because ... [demo preview — AI transcription unavailable, file ${file.name} ${Math.round(file.size/1024)}KB] The first point is confidence. When I pitched to my manager, I froze. That's when I learned structure matters.`;
       return NextResponse.json({ transcript: mock, mock: true, durationEstimate: Math.round(file.size / 16000) });
     }
 

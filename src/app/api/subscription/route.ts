@@ -10,7 +10,8 @@ const schema = z.object({
   currency: z.string().optional(),
 });
 
-// POST /api/subscription — mock upgrade (real webhooks will set this). For demo, instantly upgrades user.plan to pro
+// POST /api/subscription — upgrade endpoint. Card/UPI providers require configured
+// keys (rejected below otherwise); coins deduct server-side; bank stays pending.
 export async function POST(req: NextRequest){
   const session = await auth();
   if(!session?.user?.email) return NextResponse.json({error:"Unauthorized"},{status:401});
@@ -21,6 +22,19 @@ export async function POST(req: NextRequest){
   const parsed = schema.safeParse(body);
   if(!parsed.success) return NextResponse.json({error:"Invalid", issues:parsed.error.issues},{status:400});
   const { provider, plan } = parsed.data;
+
+  // Revenue guard: card/UPI providers must be truly configured — otherwise any
+  // signed-in user could self-grant Pro. Coins (balance deducted server-side)
+  // and bank (pending-only, no Pro granted) are safe. Local mock upgrades
+  // require ALLOW_MOCK_UPGRADE=true.
+  const keysConfigured =
+    (provider === "stripe" && !!process.env.STRIPE_SECRET_KEY) ||
+    (provider === "paypal" && !!process.env.PAYPAL_CLIENT_ID) ||
+    (provider === "razorpay" && !!process.env.RAZORPAY_KEY_ID) ||
+    provider === "coins" || provider === "bank";
+  if (!keysConfigured && process.env.ALLOW_MOCK_UPGRADE !== "true") {
+    return NextResponse.json({ error: "Online payments launching soon — pay with coins or contact support.", code: "NOT_CONFIGURED" }, { status: 503 });
+  }
 
   // Coins: 80 coins = 80rs, price 19900 paise → 199 coins etc. Check balance.
   if (provider === "coins") {

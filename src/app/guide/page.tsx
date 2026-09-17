@@ -21,12 +21,12 @@ export default function Guide(){
           <p className="mt-2 text-white/60">Based on LINGAUX’s 4-step loop. 10 minutes a day. No partner needed.</p>
           <div className="mt-6 grid md:grid-cols-2 gap-4">
             {[
-              {n:"01", t:"Create account & pick track", d:"Sign up (email or Google). Choose Career / Social / Creator / Leadership. This personalizes topics & drills. Takes 60s."},
+              {n:"01", t:"Create account & pick track", d:"Sign up with email. Choose Career / Social / Creator / Leadership. This personalizes topics & drills. Takes 60s."},
               {n:"02", t:"Studio → Record 5-min impromptu", d:"Pick a random topic (e.g. ‘Pitch your dream job’). No script. Hit Record, speak 4-5 mins. The discomfort is the data."},
-              {n:"03", t:"Wait 24h — Detachment lock", d:"App locks Review for 24h by design. You’ll judge yourself objectively only after a day. Timer shows 18h left etc."},
+              {n:"03", t:"Wait 24h — Detachment lock", d:"App locks Review for 24h by design. You judge yourself objectively only after a day. A countdown shows when Review unlocks."},
               {n:"04", t:"Triple-Scan Review", d:"Audio (fillers, pace), Video muted (eye, gestures), Transcript (structure) — AI finds your 4 leaks + gives score."},
               {n:"05", t:"Fix 1 weakness / week", d:"Week 1: kill ‘like/um’ with Pause Drill. Week 2: pace, etc. Daily 10-min drills in Practice tab. Track effort, not perfection."},
-              {n:"06", t:"Share in Community & rank", d:"Post progress video to Paid Community (Pro), get peer + coach feedback. Leaderboard ranks by XP. Weekly Boss Battle topics."},
+              {n:"06", t:"Share in Community & rank", d:"Post progress video to Paid Community (Pro), get peer + coach feedback. Leaderboard ranks by XP. Weekly challenge topics."},
             ].map(s=>(
               <div key={s.n} className="glass rounded-2xl p-4 flex gap-3">
                 <div className="w-10 h-10 rounded-xl bg-white text-black grid place-items-center font-black shrink-0">{s.n}</div>
@@ -45,8 +45,8 @@ export default function Guide(){
             <h3 className="font-bold">Leaderboard — How it works</h3>
             <ul className="mt-3 space-y-2 text-sm text-white/70 list-disc list-inside">
               <li><b className="text-white">XP:</b> Record +10, Review +40, Post +20, Daily drill +10, Streak bonus.</li>
-              <li><b className="text-white">Level:</b> 1,000 XP per level. Level 8 average is ~1,200 XP.</li>
-              <li><b className="text-white">Streak:</b> flame counts consecutive days with ≥1 action. Daily reminder.</li>
+              <li><b className="text-white">Level:</b> 1,000 XP per level.</li>
+              <li><b className="text-white">Streak:</b> flame counts consecutive days with ≥1 action.</li>
               <li><b className="text-white">Rank:</b> Global top 100 by XP `GET /api/leaderboard`. Updates live. Private: email masked.</li>
               <li><b className="text-white">Freemium:</b> Free can see leaderboard, Pro can climb faster (unlimited).</li>
             </ul>
@@ -55,7 +55,7 @@ export default function Guide(){
           <div className="glass-card rounded-2xl p-6 border-amber-400/20">
             <h3 className="font-bold">Refer & Earn — 80 coins = 80rs</h3>
             <div className="mt-2 text-sm text-white/70 leading-relaxed">
-              Share your link <code className="px-1.5 py-0.5 rounded bg-white/10">/?ref=LINGAUX-XXX</code>. When friend signs up, you get <b className="text-amber-300">80 coins instantly</b>. 1 coin = 1rs, usable only on LINGAUX for Pro subs & products. Check wallet in Refer tab / API `/api/referral`.
+              Share your link <code className="px-1.5 py-0.5 rounded bg-white/10">/?ref=YOUR-CODE</code> (sign in to see your personal link on the Dashboard). When friend signs up, you get <b className="text-amber-300">80 coins instantly</b>. 1 coin = 1rs, usable only on LINGAUX for Pro subs & products. Check your wallet on the Dashboard.
             </div>
             <div className="mt-3 glass rounded-xl p-3 text-xs">
               <div>Example: 3 referrals = 240 coins → Pro Monthly ₹199 = 199 coins → you pay 0 + keep 41.</div>
@@ -67,9 +67,9 @@ export default function Guide(){
         <div className="glass-card rounded-2xl p-6">
           <h3 className="font-bold">Tips to stay consistent</h3>
           <div className="mt-3 grid sm:grid-cols-3 gap-3 text-sm">
-            <div className="glass rounded-xl p-3"><b>Same time daily</b><div className="text-xs text-white/60 mt-1">Morning 7am works best — 2x retention.</div></div>
+            <div className="glass rounded-xl p-3"><b>Same time daily</b><div className="text-xs text-white/60 mt-1">A fixed morning slot sticks best.</div></div>
             <div className="glass rounded-xl p-3"><b>Don’t restart</b><div className="text-xs text-white/60 mt-1">If you stumble, keep going. Recovery is the skill.</div></div>
-            <div className="glass rounded-xl p-3"><b>Post daily</b><div className="text-xs text-white/60 mt-1">Public commitment → 3x completion.</div></div>
+            <div className="glass rounded-xl p-3"><b>Post daily</b><div className="text-xs text-white/60 mt-1">Public commitment keeps you accountable.</div></div>
           </div>
         </div>
       </main>

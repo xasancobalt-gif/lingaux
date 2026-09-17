@@ -24,6 +24,14 @@ export async function POST(req: NextRequest) {
   const session = await auth().catch(()=>null);
   const email = session?.user?.email || body.email || "guest@lingaux.app";
 
+  // Personal referral link when signed in (no placeholder codes)
+  let refCode: string | null = null;
+  if (session?.user?.email) {
+    const u = await prisma.user.findUnique({ where: { email: session.user.email.toLowerCase() }, select: { referralCode: true } }).catch(()=>null);
+    refCode = u?.referralCode || null;
+  }
+  const refLinkText = refCode ? `/?ref=${refCode}` : "/?ref=YOUR-CODE (sign in on the Dashboard to get your personal link)";
+
   // Try OpenAI if key
   let answer: string | null = null;
   let usedAI = false;
@@ -48,11 +56,11 @@ export async function POST(req: NextRequest) {
   if (!answer) {
     const low = message.toLowerCase();
     if (low.includes("price") || low.includes("cost") || low.includes("pro")) answer = "Pro is ₹199/mo (India) or $19/mo global — unlimited Triple-Scan + paid community + private chat. Free gives 3 recordings/week + 1 scan. Use 80 coins per referral (1 coin=1rs) to pay!";
-    else if (low.includes("refer") || low.includes("coin") || low.includes("earn")) answer = "Refer & Earn: share your link `/?ref=LINGAUX-XXX`. When friend signs up, you get 80 coins = 80rs instantly. Coins work only on LINGAUX for subs & products. Check Wallet in Dashboard.";
+    else if (low.includes("refer") || low.includes("coin") || low.includes("earn")) answer = "Refer & Earn: share your link `" + refLinkText + "`. When friend signs up, you get 80 coins = 80rs instantly. Coins work only on LINGAUX for subs & products. Check Wallet in Dashboard.";
     else if (low.includes("camera") || low.includes("record")) answer = "Studio needs camera/mic permission. Allow in Chrome → lock icon → Allow. Record 5-min impromptu, wait 24h (detachment lock), then Triple-Scan finds your 4 leaks.";
-    else if (low.includes("refund")) answer = "7-day refund via support — Stripe/Razorpay/PayPal auto, bank manual in 12h.";
+    else if (low.includes("refund")) answer = "7-day refund — see /refund for the full policy, or contact support.";
     else if (low.includes("admin") || low.includes("human") || low.includes("ticket")) answer = null; // force ticket
-    else if (low.includes("leaderboard") || low.includes("rank")) answer = "Leaderboard ranks by XP (record + review + posts). See Dashboard → Global Leaderboard or /leaderboard for full table. Weekly Boss Battle every Monday.";
+    else if (low.includes("leaderboard") || low.includes("rank")) answer = "Leaderboard ranks by XP (record + review + posts). See Dashboard → Global Leaderboard or /leaderboard for full table. Weekly challenges on /leaderboard.";
     else if (low.includes("guide") || low.includes("how to start") || low.includes("challenge")) answer = "Start: Dashboard → Studio → pick random topic → Record 5 mins → wait 24h → Review → Fix 1 weakness/week in Practice → repeat 30 days. See /guide for step-by-step.";
     else answer = "I can help with LINGAUX: pricing, referral coins, recording, 24h lock, community. Ask me anything, or say 'human' to raise a ticket to our support team.";
   }
@@ -72,19 +80,13 @@ export async function POST(req: NextRequest) {
     });
 
     try {
-      if (process.env.SMTP_HOST && process.env.SMTP_USER) {
-        const nodemailer = await import("nodemailer");
-        const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
-          port: Number(process.env.SMTP_PORT || 587),
-          secure: false,
-          auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-        });
-        await transporter.sendMail({
-          from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      const { sendEmail, isEmailConfigured } = await import("@/lib/email");
+      if (isEmailConfigured()) {
+        await sendEmail({
           to: getAdminEmails().join(","),
           subject: `[LINGAUX Ticket #${ticket.id.slice(0,8)}] ${ticket.subject}`,
           text: `From: ${email}\nMessage: ${message}\nTicket ID: ${ticket.id}\n\nView in /admin`,
+          html: `<p>From: ${email}</p><p>Message: ${message}</p><p>Ticket ID: ${ticket.id}</p><p>View in /admin</p>`,
         });
       } else if (process.env.NODE_ENV !== "production") {
         console.log(`[ticket] Would mail support: ${ticket.id} — ${message} — from ${email}`);

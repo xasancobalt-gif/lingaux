@@ -22,12 +22,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://lingaux.app"),
+  metadataBase: new URL("https://lingaux.vercel.app"),
   title: {
     default: "LINGAUX — Speak • Learn • Progress | Master Communication in 30 Days",
     template: "%s | LINGAUX"
   },
-  description: "The futuristic 3D OS to master communication. Record. Review. Transform. Join 12,000+ speaking with confidence. Free to start, Pro to dominate.",
+  description: "The 3D OS to master communication. Record. Review. Transform. Free to start, Pro to dominate.",
   keywords: ["communication", "public speaking", "30 day plan", "speaking coach", "lingaux", "learn to speak", "3d learning"],
   manifest: "/manifest.json",
   icons: { icon: "/brand/lingaux-logo.png", apple: "/brand/lingaux-logo.png" },
