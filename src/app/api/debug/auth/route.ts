@@ -42,6 +42,26 @@ export async function GET() {
     } catch { out.db.userCount = "n/a"; }
   }
 
+  // 3b) Schema check — do the auth-critical tables/columns exist on THIS DB?
+  if (out.db?.ok) {
+    try {
+      const { prisma } = await import("@/lib/prisma");
+      const schema: any[] = await prisma.$queryRawUnsafe(
+        `SELECT table_name, column_name FROM information_schema.columns
+         WHERE table_schema='public' AND (
+           (table_name='User' AND column_name='sessionVersion')
+           OR table_name='PasswordResetToken'
+         ) ORDER BY table_name`
+      );
+      out.db.schema = {
+        hasSessionVersion: schema.some((r: any) => r.table_name === "User" && r.column_name === "sessionVersion"),
+        resetTableCols: schema.filter((r: any) => r.table_name === "PasswordResetToken").map((r: any) => r.column_name),
+      };
+    } catch (e: any) {
+      out.db.schema = { error: ((e?.message || "") + "").slice(0, 200) };
+    }
+  }
+
   // 4) Auth config sanity (no secrets)
   out.auth = {
     strategy: "jwt",
