@@ -140,6 +140,7 @@ function getNextAuth() {
               (token as any).level = dbUser.level;
               (token as any).streak = (dbUser as any).streak || 0;
               (token as any).role = dbUser.role;
+              (token as any).sessionVersion = (dbUser as any).sessionVersion || 0;
               if (dbUser.email && isAdmin(dbUser.email) && dbUser.role !== "admin") {
                 await prisma.user.update({ where: { id: dbUser.id }, data: { role: "admin", plan: "pro" } }).catch(()=>{});
                 (token as any).role = "admin";
@@ -151,11 +152,21 @@ function getNextAuth() {
           try {
             const dbUser = await prisma.user.findUnique({ where: { id: token.id as string } });
             if (dbUser) {
+              // Session revocation: a password change/reset bumps
+              // User.sessionVersion server-side. If the token was minted at an
+              // older version, it is stale — drop the identity so the session
+              // callback emits a signed-out session (middleware-redirected next).
+              const tokVer = (token as any).sessionVersion || 0;
+              const dbVer = (dbUser as any).sessionVersion || 0;
+              if (tokVer !== dbVer) {
+                return {};
+              }
               (token as any).role = dbUser.role;
               (token as any).plan = dbUser.plan;
               (token as any).xp = dbUser.xp;
               (token as any).level = dbUser.level;
               (token as any).streak = (dbUser as any).streak || 0;
+              (token as any).sessionVersion = dbVer;
             }
           } catch {}
         }
