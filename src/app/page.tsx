@@ -179,7 +179,7 @@ export default function LINGAUX() {
     try {
       const res = await signIn("email", { email, redirect: false }) as any;
       if (res?.error) {
-        setToast(res.error || "Failed to send magic link — check RESEND_API_KEY config");
+        setToast(res.error || "Failed to send magic link — check GMAIL_USER/GMAIL_PASS config");
       } else {
         setToast("Magic link sent — check your inbox 📮");
       }

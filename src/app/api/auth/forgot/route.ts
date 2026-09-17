@@ -3,26 +3,18 @@ import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
-function isResendConfigured(): boolean {
-  const k = (process.env.RESEND_API_KEY || "").trim();
-  return k.startsWith("re_") && k.length > 15 && !k.includes("...");
-}
-
 async function sendResetEmail(email: string, url: string) {
-  if (!isResendConfigured()) return;
+  const { isEmailConfigured, sendEmail } = await import("@/lib/email");
+  if (!isEmailConfigured()) return;
   try {
-    const { Resend } = await import("resend");
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    const from = process.env.EMAIL_FROM || "LINGAUX <onboarding@resend.dev>";
-    await resend.emails.send({
-      from,
+    await sendEmail({
       to: email,
       subject: "Reset your LINGAUX password",
       text: `Reset your LINGAUX password:\n\n${url}\n\nThis link is valid for 1 hour and works once. If you didn't ask for this, ignore it.`,
       html: `<div style="background:#0A0A0F;color:#fff;font-family:sans-serif;padding:32px;"><a href="${url}" style="display:inline-block;padding:14px 32px;background:#fff;color:#000;border-radius:999px;text-decoration:none;font-weight:bold;">Reset my password</a><p style="color:#666;font-size:12px;margin-top:24px;">Valid for 1 hour, single use. Ignore if not requested.</p></div>`,
     });
   } catch (e) {
-    console.error("forgot: Resend send failed", e);
+    console.error("forgot: email send failed", e);
   }
 }
 

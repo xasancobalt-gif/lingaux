@@ -16,38 +16,22 @@ const credentialsSchema = z.object({
   token: z.string().optional(),
 });
 
-// Only enable the Email (magic link) provider with a REAL Resend key —
-// a placeholder/empty key must not even construct the provider.
-function isResendConfigured() {
-  const k = (process.env.RESEND_API_KEY || "").trim();
-  return k.startsWith("re_") && k.length > 12 && !k.includes("...");
+// Only enable the Email (magic link) provider with REAL Gmail creds —
+// a placeholder/empty password must not even construct the provider.
+function isEmailConfigured() {
+  const u = (process.env.GMAIL_USER || "").trim();
+  const p = (process.env.GMAIL_PASS || "").trim();
+  return u.includes("@") && p.length >= 8 && !p.includes("...");
 }
 
-// Resend sends via API; Auth.js v5's Email() still requires a `server`
-// object at init (it spreads Nodemailer(config) which throws without one).
-// This dummy is never used because we override sendVerificationRequest.
-const DUMMY_SMTP_SERVER = {
-  host: "127.0.0.1",
-  port: 1025,
-  auth: { user: "lingaux", pass: "lingaux" },
-};
-
-async function sendMagicLinkViaResend({ identifier, url }: { identifier: string; url: string }) {
-  const { Resend } = await import("resend");
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = process.env.EMAIL_FROM || "LINGAUX <onboarding@resend.dev>";
-  try {
-    await resend.emails.send({
-      from,
-      to: identifier,
-      subject: "LINGAUX — your magic link",
-      text: `Click the link to sign in to LINGAUX:\n\n${url}\n\nThis link expires in 24 hours. If you didn't request this, ignore this email.`,
-      html: `<!DOCTYPE html><html><body style="font-family:sans-serif;padding:32px;text-align:center;background:#0A0A0F;color:#fff;"><div style="max-width:480px;margin:0 auto;"><h1 style="font-size:20px;">LINGAUX — Your Magic Link</h1><p style="color:#aaa;margin:16px 0;">Click the button below to sign in. This link expires in 24 hours.</p><a href="${url}" style="display:inline-block;padding:14px 32px;background:#fff;color:#000;font-weight:bold;border-radius:999px;text-decoration:none;">Sign in to LINGAUX</a><p style="color:#666;margin-top:24px;font-size:12px;">If you didn't request this, just ignore this email.</p></div></body></html>`,
-    });
-  } catch (err) {
-    console.error("Resend magic link error:", err);
-    throw new Error("Failed to send magic link email");
-  }
+async function sendMagicLink({ identifier, url }: { identifier: string; url: string }) {
+  const { sendEmail } = await import("@/lib/email");
+  await sendEmail({
+    to: identifier,
+    subject: "LINGAUX — your magic link",
+    text: `Click the link to sign in to LINGAUX:\n\n${url}\n\nThis link expires in 24 hours. If you didn't request this, ignore this email.`,
+    html: `<!DOCTYPE html><html><body style="font-family:sans-serif;padding:32px;text-align:center;background:#0A0A0F;color:#fff;"><div style="max-width:480px;margin:0 auto;"><h1 style="font-size:20px;">LINGAUX — Your Magic Link</h1><p style="color:#aaa;margin:16px 0;">Click the button below to sign in. This link expires in 24 hours.</p><a href="${url}" style="display:inline-block;padding:14px 32px;background:#fff;color:#000;font-weight:bold;border-radius:999px;text-decoration:none;">Sign in to LINGAUX</a><p style="color:#666;margin-top:24px;font-size:12px;">If you didn't request this, just ignore this email.</p></div></body></html>`,
+  });
 }
 
 function getNextAuth() {
@@ -72,16 +56,26 @@ function getNextAuth() {
         allowDangerousEmailAccountLinking: true,
       })] : []),
 
-      ...(isResendConfigured() ? [{
+      ...(isEmailConfigured() ? [{
         ...Email({
-          server: DUMMY_SMTP_SERVER,
-          from: process.env.EMAIL_FROM || "LINGAUX <onboarding@resend.dev>",
+          // Gmail SMTP via nodemailer (Auth.js v5 needs a `server` object at
+          // init but we override sendVerificationRequest, so this is inert).
+          server: {
+            host: "smtp.gmail.com",
+            port: 465,
+            secure: true,
+            auth: {
+              user: (process.env.GMAIL_USER || "").trim(),
+              pass: (process.env.GMAIL_PASS || "").trim(),
+            },
+          },
+          from: `LINGAUX <${(process.env.GMAIL_USER || "").trim()}>`,
           ...({ allowDangerousEmailAccountLinking: true } as { allowDangerousEmailAccountLinking: boolean }),
         }),
         // Top-level override — this is what Auth.js actually calls.
         // (A sendVerificationRequest nested inside Email({...}) would be
         // swallowed into `options` and ignored at runtime.)
-        sendVerificationRequest: sendMagicLinkViaResend,
+        sendVerificationRequest: sendMagicLink,
       }] : []),
 
       Credentials({
