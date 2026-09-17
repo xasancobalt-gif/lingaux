@@ -1516,7 +1516,7 @@ export default function LINGAUX() {
 
       {/* TOAST */}
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 glass-strong rounded-full px-5 py-3 flex items-center gap-3 border-white/15 shadow-xl max-w-[92vw]">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] glass-strong rounded-full px-5 py-3 flex items-center gap-3 border-white/15 shadow-xl max-w-[92vw]">
           <span className="w-8 h-8 rounded-full bg-white text-black grid place-items-center font-black">✓</span>
           <span className="text-sm font-semibold whitespace-nowrap">{toast}</span>
           <button onClick={()=>setToast(null)} className="ml-2 w-7 h-7 rounded-full glass grid place-items-center text-xs">✕</button>
