@@ -33,6 +33,12 @@ export async function POST(req: NextRequest) {
       ? parsed.data.email.trim().toLowerCase()
       : "";
 
+    const { rateLimit, clientIp } = await import("@/lib/rate-limit");
+    const ip = clientIp(req);
+    if (!rateLimit(`forgot:ip:${ip}`, 20, 60 * 60 * 1000) || (email && !rateLimit(`forgot:email:${email}`, 5, 60 * 60 * 1000))) {
+      return NextResponse.json({ ok: false, error: "Too many requests — try again later." }, { status: 429 });
+    }
+
     // No-existence-reveal: same response + same timing regardless of whether
     // an account exists. (P0 from the spec.)
     const dummy = () => new Promise((r) => setTimeout(r, 700 + Math.random() * 400));
@@ -67,8 +73,9 @@ export async function POST(req: NextRequest) {
       });
 
       const base = process.env.NEXTAUTH_URL || process.env.AUTH_URL || "https://lingaux.vercel.app";
-      const cb = encodeURIComponent(`/reset-password?token=${raw}`);
-      await sendResetEmail(email, `${base}${cb}`);
+      // NOTE: base64url is already URL-safe — never encodeURIComponent the path
+      // (that produced https://…%2Freset-password%3Ftoken%3D… invalid links).
+      await sendResetEmail(email, `${base}/reset-password?token=${raw}`);
     }
 
     // Always 200 (uniform timing above). Never reveal whether the email exists.

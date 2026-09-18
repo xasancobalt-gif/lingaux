@@ -7,6 +7,7 @@ import LinkedIn from "next-auth/providers/linkedin";
 import Email from "next-auth/providers/email";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { z } from "zod";
 import { isAdmin } from "@/lib/admin";
 
@@ -14,6 +15,11 @@ const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   token: z.string().optional(),
+});
+
+const otpSchema = z.object({
+  email: z.string().email(),
+  code: z.string().regex(/^\d{6}$/),
 });
 
 // Only enable the Email (magic link) provider with REAL Gmail creds —
@@ -110,6 +116,53 @@ function getNextAuth() {
             const secret = (user as any).twoFactorSecret as string | null;
             if (!secret || !verifyToken(secret, token)) throw new Error("INVALID_2FA");
           }
+          return { id: user.id, email: user.email!, name: user.name, image: user.image };
+        },
+      }),
+      Credentials({
+        id: "otp",
+        name: "Email OTP",
+        credentials: {
+          email: { label: "Email", type: "email" },
+          code: { label: "6-digit code", type: "text" },
+        },
+        async authorize(creds) {
+          const parsed = otpSchema.safeParse(creds);
+          if (!parsed.success) return null;
+          const { email, code } = parsed.data;
+          const lower = email.toLowerCase();
+          const now = new Date();
+          let rec: any = null;
+          try {
+            rec = await prisma.emailOtp.findFirst({
+              where: { email: lower, usedAt: null, expiresAt: { gt: now } },
+              orderBy: { createdAt: "desc" },
+            });
+          } catch { return null; }
+          if (!rec || rec.attempts >= 5) return null;
+          const digest = crypto.createHash("sha256").update(code + (process.env.AUTH_SECRET || "voxa-reset")).digest("hex");
+          const a = Buffer.from(digest);
+          const b = Buffer.from(rec.codeHash);
+          const match = a.length === b.length && crypto.timingSafeEqual(a, b);
+          if (!match) {
+            await prisma.emailOtp.update({ where: { id: rec.id }, data: { attempts: { increment: 1 } } }).catch(() => {});
+            return null;
+          }
+          await prisma.emailOtp.update({ where: { id: rec.id }, data: { usedAt: now } }).catch(() => {});
+          // OTP proves email ownership: auto-provision passwordless accounts.
+          let user: any = null;
+          try {
+            user = await prisma.user.findUnique({ where: { email: lower } });
+            if (!user) {
+              const { generateReferralCode } = await import("@/lib/referral");
+              user = await prisma.user.create({
+                data: { email: lower, name: lower.split("@")[0], emailVerified: now, referralCode: generateReferralCode(lower) },
+              });
+            } else if (!user.emailVerified) {
+              await prisma.user.update({ where: { id: user.id }, data: { emailVerified: now } }).catch(() => {});
+            }
+          } catch { return null; }
+          if (!user) return null;
           return { id: user.id, email: user.email!, name: user.name, image: user.image };
         },
       }),

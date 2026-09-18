@@ -19,8 +19,10 @@ const resetSchema = z.object({
   password: z.string().min(8).max(128),
 });
 
-function sha256(v: string): string {
-  return crypto.createHash("sha256").update(v).digest("hex");
+// Must hash EXACTLY like forgot-time: sha256(raw + AUTH_SECRET).
+// (A previous version hashed without the secret here, so no link ever validated.)
+function tokenHashFor(raw: string): string {
+  return crypto.createHash("sha256").update(raw + (process.env.AUTH_SECRET || "voxa-reset")).digest("hex");
 }
 
 export async function POST(req: NextRequest) {
@@ -37,7 +39,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { token, password } = parsed.data;
-  const tokenHash = sha256(token);
+  const tokenHash = tokenHashFor(token);
 
   const record = await prisma.passwordResetToken.findUnique({
     where: { tokenHash },

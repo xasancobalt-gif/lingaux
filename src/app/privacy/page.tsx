@@ -33,7 +33,7 @@ export default function Privacy(){
           </section>
           <section>
             <h2 className="text-white font-bold">5. Retention & deletion</h2>
-            <p className="mt-2">Recordings and account data are kept while your account is active. You can request export or full deletion anytime at support@lingaux.app — deletion removes your account, recordings, and personal data within 30 days (payment records are kept as required by law).</p>
+            <p className="mt-2">Recordings and account data are kept while your account is active. You can request export or full deletion anytime at lingauxofficial@gmail.com — deletion removes your account, recordings, and personal data within 30 days (payment records are kept as required by law).</p>
           </section>
           <section>
             <h2 className="text-white font-bold">6. Children</h2>
@@ -41,7 +41,7 @@ export default function Privacy(){
           </section>
           <section>
             <h2 className="text-white font-bold">7. Contact</h2>
-            <p className="mt-2">Questions about this policy: support@lingaux.app</p>
+            <p className="mt-2">Questions about this policy: lingauxofficial@gmail.com</p>
           </section>
         </div>
       </main>

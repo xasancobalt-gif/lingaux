@@ -29,7 +29,7 @@ export default function LINGAUX() {
   const sessionPro = (session?.user as any)?.plan === "pro";
   const [active, setActive] = useState("dashboard");
   const [showAuth, setShowAuth] = useState(false);
-  const [authMode, setAuthMode] = useState<"signin"|"signup">("signup");
+  const [authMode, setAuthMode] = useState<"signin"|"signup"|"otp">("signup");
   const [showPaywall, setShowPaywall] = useState(false);
   const [paywallSource, setPaywallSource] = useState("pro");
   const [isProLocal, setIsProLocal] = useState(false);
@@ -49,6 +49,9 @@ export default function LINGAUX() {
   useEffect(()=>{
     fetch("/api/auth/providers").then(r=>r.json()).then(j=>setAuthProviders(Object.keys(j || {}))).catch(()=>{});
   },[]);
+  // Email OTP (passwordless via Gmail code)
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
   const [topic, setTopic] = useState(topics[0]);
   // No fake demo state: fresh accounts start with zero recordings and no lock.
   // Real values load from /api/recordings once authenticated (see effect below).
@@ -121,9 +124,13 @@ export default function LINGAUX() {
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || "Register failed");
-      setToast("Account created! Now sign in →");
+      setToast("Account created! Now sign in below");
       setAuthMode("signin");
-    } catch (e:any) { setToast(e.message); setTimeout(()=>setToast(null),3000); }
+    } catch (e:any) {
+      if(/already registered/i.test(e.message || "")){ setAuthMode("signin"); setToast("Account exists — sign in below"); }
+      else setToast(e.message);
+      setTimeout(()=>setToast(null),3000);
+    }
     finally { setAuthLoading(false); }
   };
 
@@ -163,7 +170,7 @@ export default function LINGAUX() {
         }
         setToast("Invalid email or password"); setTimeout(()=>setToast(null),2500);
       }
-      else { setShowAuth(false); setNeed2FA(false); setTwoFactorCode(""); setToast("Signed in — streak intact 🔥"); setTimeout(()=>setToast(null),2000); }
+      else { setShowAuth(false); setNeed2FA(false); setTwoFactorCode(""); setTimeout(()=>window.location.reload(),900); setToast("Signed in — streak intact 🔥"); setTimeout(()=>setToast(null),2000); }
     } catch (e:any) {
       const msg = (e?.message || "") as string;
       if(/database|connect|ECONNREFUSED|reach/i.test(msg) || /AUTH_DB_ERROR/.test(msg)){
@@ -172,6 +179,31 @@ export default function LINGAUX() {
         setToast(msg || "Sign in failed — network/CSRF error. Try again."); setTimeout(()=>setToast(null),3500);
       }
     } finally { setAuthLoading(false); }
+  };
+
+  const handleOtpRequest = async () => {
+    if(!email.includes("@")){ setToast("Enter your email first"); setTimeout(()=>setToast(null),2500); return; }
+    setAuthLoading(true);
+    try{
+      const res = await fetch("/api/auth/otp/request",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})});
+      if(!res.ok){ const j = await res.json().catch(()=>({} as any)); throw new Error((j as any).error || "Could not send code"); }
+      setOtpSent(true);
+      setToast("Code sent — check your inbox"); setTimeout(()=>setToast(null),2500);
+    }catch(e:any){ setToast(e.message || "Could not send code"); setTimeout(()=>setToast(null),3000); }
+    finally{ setAuthLoading(false); }
+  };
+
+  const handleOtpVerify = async () => {
+    if(otpCode.trim().length!==6){ setToast("Enter the 6-digit code"); setTimeout(()=>setToast(null),2500); return; }
+    setAuthLoading(true);
+    try{
+      const res = await signIn("otp",{email, code:otpCode.trim(), redirect:false}) as any;
+      if(res?.error){ setToast("Invalid or expired code — try again"); setTimeout(()=>setToast(null),3000); return; }
+      setShowAuth(false); setOtpSent(false); setOtpCode(""); setToast("Signed in");
+      setTimeout(()=>setToast(null),2000);
+      setTimeout(()=>window.location.reload(),900);
+    }catch(e:any){ setToast(e.message || "Sign in failed"); setTimeout(()=>setToast(null),3000); }
+    finally{ setAuthLoading(false); }
   };
 
   const handleOAuth = async (provider: "google"|"apple"|"linkedin") => {
@@ -213,13 +245,29 @@ export default function LINGAUX() {
     } catch (e:any) { setToast(e.message); setTimeout(()=>setToast(null),3000); }
   };
 
+  // Deep links: /?tab=studio etc. activate the matching tab, then clean the URL.
+  useEffect(()=>{
+    try{
+      const t = new URLSearchParams(window.location.search).get("tab");
+      const valid = ["dashboard","studio","review","practice","academy","community","messages","profile"];
+      if(t && valid.includes(t)){
+        setActive(t);
+        const u = new URL(window.location.href); u.searchParams.delete("tab"); window.history.replaceState({}, "", u.toString());
+      }
+    }catch{}
+  },[]);
   const loadRazorpayScript = () => new Promise<boolean>((resolve)=>{
     if((window as any).Razorpay) return resolve(true);
     const s=document.createElement("script"); s.src="https://checkout.razorpay.com/v1/checkout.js";
     s.onload=()=>resolve(true); s.onerror=()=>resolve(false); document.body.appendChild(s);
   });
+  const loadCashfreeScript = () => new Promise<boolean>((resolve)=>{
+    if((window as any).Cashfree) return resolve(true);
+    const s=document.createElement("script"); s.src="https://sdk.cashfree.com/js/v3/cashfree.js";
+    s.onload=()=>resolve(true); s.onerror=()=>resolve(false); document.body.appendChild(s);
+  });
 
-  const handleSubscribe = async (provider: "stripe"|"paypal"|"razorpay"|"bank", plan: "monthly"|"annual"|"lifetime") => {
+  const handleSubscribe = async (provider: "cashfree"|"paypal"|"razorpay"|"bank", plan: "monthly"|"annual"|"lifetime") => {
     if (status !== "authenticated") { setShowAuth(true); return; }
     if(provider==="paypal"){
       try{
@@ -250,10 +298,10 @@ export default function LINGAUX() {
       }catch(e:any){ setToast(e.message); }
       return;
     }
-    if(provider==="stripe"){
+    if(provider==="cashfree"){
       try{
-        setToast("Creating Stripe Checkout…"); 
-        const res=await fetch("/api/checkout/stripe",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({plan})});
+        setToast("Creating Cashfree order…"); 
+        const res=await fetch("/api/checkout/cashfree",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({plan})});
         const j=await res.json();
         if(!res.ok){
           if(j.code==="NOT_CONFIGURED"){
@@ -262,7 +310,13 @@ export default function LINGAUX() {
           }
           throw new Error(j.error);
         }
-        if(j.url) window.location.href=j.url;
+        if(j.paymentSessionId){
+          setToast("Redirecting to Cashfree...");
+          const okCf=await loadCashfreeScript();
+          if(!okCf) throw new Error("Failed to load Cashfree checkout");
+          const cf=(window as any).Cashfree({mode:j.mode || "sandbox"});
+          cf.checkout({paymentSessionId:j.paymentSessionId, redirectTarget:"_self"});
+        } else throw new Error("No payment session from Cashfree");
       }catch(e:any){ setToast(e.message); setTimeout(()=>setToast(null),4000); }
       return;
     }
@@ -584,7 +638,7 @@ export default function LINGAUX() {
           </div>
 
           <div className="text-[11px] text-white/30 px-2 leading-relaxed">
-             Health: <span className="text-emerald-400">API connected</span><br/> Need help? support@lingaux.app
+             Health: <span className="text-emerald-400">API connected</span><br/> Need help? lingauxofficial@gmail.com
           </div>
         </aside>
 
@@ -1339,19 +1393,22 @@ export default function LINGAUX() {
                         <li>✓ Unlimited Triple-Scan AI</li><li>✓ Paid community + private chat</li><li>✓ Certificates + Game Plan PDF</li><li>✓ Cancel anytime</li>
                       </ul>
                       {!isPro ? (
-                        <button onClick={()=>triggerPaywall("profile")} className="mt-4 w-full py-3 rounded-xl bg-white text-black font-black">Upgrade Now</button>
+                      <>
+                      <button onClick={()=>triggerPaywall("profile")} className="mt-4 w-full py-3 rounded-xl bg-white text-black font-black">Upgrade Now</button>
+                      {status==="authenticated" && (<button onClick={async()=>{ if(!confirm("Sign out on all devices?")) return; await fetch("/api/auth/sessions/revoke",{method:"POST"}); await signOut({callbackUrl:"/"}); }} className="mt-3 w-full py-2.5 rounded-xl glass text-sm font-bold">Sign out all devices</button>)}
+                      </>
                       ):(
                         <button onClick={()=>{setIsProLocal(false); setToast("Downgraded to Free"); setTimeout(()=>setToast(null),2000);}} className="mt-4 w-full py-3 rounded-xl glass font-bold">Manage billing • Downgrade</button>
                       )}
-                      <div className="mt-3 text-xs text-white/40 text-center">PayPal • Razorpay UPI • Cards • Bank Transfer • GST invoice</div>
+                      <div className="mt-3 text-xs text-white/40 text-center">Cashfree & Razorpay (India) • PayPal (Global) • Bank Transfer</div>
                     </div>
                   </div>
                   <div className="glass-card rounded-2xl p-5">
                     <div className="font-bold text-sm">Site health</div>
                     <div className="mt-3 space-y-2 text-xs">
                       <div className="flex justify-between"><span className="text-white/60">Status</span><span className="text-emerald-400 font-bold">Operational</span></div>
-                      <div className="flex justify-between"><span className="text-white/60">Data</span><span>GDPR • E2E messages</span></div>
-                      <div className="flex justify-between"><span className="text-white/60">Support</span><span>support@lingaux.app • 12h</span></div>
+                      <div className="flex justify-between"><span className="text-white/60">Data</span><span>Private • Moderated</span></div>
+                      <div className="flex justify-between"><span className="text-white/60">Support</span><span>lingauxofficial@gmail.com • 12h</span></div>
                     </div>
                   </div>
                 </div>
@@ -1387,8 +1444,8 @@ export default function LINGAUX() {
               <div className="flex items-start justify-between">
                 <div>
                   <div className="w-10 h-10 rounded-xl bg-white text-black grid place-items-center font-black">LINGAUX</div>
-                  <h3 className="mt-3 font-serif text-2xl font-bold leading-none">{authMode==="signup" ? "Create your LINGAUX" : "Welcome back"}</h3>
-                  <p className="text-sm text-white/60 mt-1">{authMode==="signup" ? "Free to start • No card needed" : "Sign in to continue your streak"}</p>
+                  <h3 className="mt-3 font-serif text-2xl font-bold leading-none">{authMode==="otp" ? "Email code" : authMode==="signup" ? "Create your LINGAUX" : "Welcome back"}</h3>
+                  <p className="text-sm text-white/60 mt-1">{authMode==="otp" ? "6-digit code, no password needed" : authMode==="signup" ? "Free to start • No card needed" : "Sign in to continue your streak"}</p>
                 </div>
                 <button onClick={()=>setShowAuth(false)} className="w-8 h-8 rounded-full glass grid place-items-center">✕</button>
               </div>
@@ -1412,6 +1469,7 @@ export default function LINGAUX() {
               <div className="flex gap-2 p-1 rounded-full glass w-fit">
                 <button onClick={()=>setAuthMode("signup")} className={`px-4 py-1.5 rounded-full text-sm font-bold ${authMode==="signup"?"bg-white text-black":"text-white/60"}`}>Sign up</button>
                 <button onClick={()=>setAuthMode("signin")} className={`px-4 py-1.5 rounded-full text-sm font-bold ${authMode==="signin"?"bg-white text-black":"text-white/60"}`}>Sign in</button>
+                <button onClick={()=>{setAuthMode("otp"); setOtpSent(false);}} className={`px-4 py-1.5 rounded-full text-sm font-bold ${authMode==="otp"?"bg-white text-black":"text-white/60"}`}>OTP</button>
               </div>
 
               <div className="mt-4 space-y-3">
@@ -1419,17 +1477,34 @@ export default function LINGAUX() {
                   <input value={name} onChange={e=>setName(e.target.value)} placeholder="Full name" className="w-full glass rounded-xl px-4 py-3 text-sm bg-white/[0.06] border-white/10 placeholder:text-white/40 outline-none focus:border-white/20"/>
                 )}
                 <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@company.com" autoComplete="email" className="w-full glass rounded-xl px-4 py-3 text-sm bg-white/[0.06] border-white/10 placeholder:text-white/40 outline-none focus:border-white/20"/>
-                <input value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password • min 8 chars" type="password" autoComplete={authMode==="signup"?"new-password":"current-password"} className="w-full glass rounded-xl px-4 py-3 text-sm bg-white/[0.06] border-white/10 placeholder:text-white/40 outline-none focus:border-white/20"/>
+                {authMode!=="otp" && (<input value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password • min 8 chars" type="password" autoComplete={authMode==="signup"?"new-password":"current-password"} className="w-full glass rounded-xl px-4 py-3 text-sm bg-white/[0.06] border-white/10 placeholder:text-white/40 outline-none focus:border-white/20"/>)}
                 {need2FA && (
                   <input value={twoFactorCode} onChange={e=>setTwoFactorCode(e.target.value.replace(/\D/g,"").slice(0,6))} placeholder="2FA code • 6 digits (if enabled)" inputMode="numeric" className="w-full glass rounded-xl px-4 py-3 text-sm bg-amber-500/10 border-amber-400/30 placeholder:text-white/40 outline-none focus:border-amber-400/50"/>
                 )}
+                {authMode!=="otp" && (
                 <div className="flex items-center justify-end text-xs">
                   <Link href="/forgot-password" className="text-white hover:underline">Forgot password?</Link>
                 </div>
-                <button disabled={authLoading} onClick={()=> authMode==="signup" ? handleRegister() : handleCredentialsLogin()} className="w-full py-3 rounded-xl bg-white text-black font-black disabled:opacity-60">
+                )}
+                {authMode==="otp" && (
+                <div className="space-y-3">
+                  {!otpSent ? (
+                    <p className="text-xs text-white/60 leading-relaxed">We email a 6-digit code to the address above. No password needed — new here? A fresh account is created automatically.</p>
+                  ) : (
+                    <input value={otpCode} onChange={e=>setOtpCode(e.target.value.replace(/\D/g,"").slice(0,6))} placeholder="6-digit code" inputMode="numeric" className="w-full glass rounded-xl px-4 py-3 text-sm tracking-[0.5em] text-center bg-white/[0.06] border-white/10 placeholder:text-white/40 outline-none focus:border-white/20"/>
+                  )}
+                  <button disabled={authLoading} onClick={()=> otpSent ? handleOtpVerify() : handleOtpRequest()} className="w-full py-3 rounded-xl bg-white text-black font-black disabled:opacity-60">
+                    {authLoading ? "Please wait..." : otpSent ? "Verify code" : "Send code"}
+                  </button>
+                  {otpSent && (
+                    <button disabled={authLoading} onClick={handleOtpRequest} className="w-full py-2 text-xs text-white/60 hover:text-white">Resend code</button>
+                  )}
+                </div>
+                )}
+                <button disabled={authLoading} onClick={()=> authMode==="signup" ? handleRegister() : handleCredentialsLogin()} style={authMode==="otp"?{display:"none"}:undefined} className="w-full py-3 rounded-xl bg-white text-black font-black disabled:opacity-60">
                   {authLoading ? "Please wait..." : need2FA ? "Verify 2FA & Sign in →" : authMode==="signup" ? "Create account →" : "Sign in →"}
                 </button>
-                <button disabled={authLoading} onClick={handleMagicLink} style={authProviders.includes("email")?undefined:{display:"none"}} className="w-full py-3 rounded-xl glass font-bold text-sm">✉ Send magic link (passwordless)</button>
+                <button disabled={authLoading} onClick={handleMagicLink} style={(authProviders.includes("email")&&authMode!=="otp")?undefined:{display:"none"}} className="w-full py-3 rounded-xl glass font-bold text-sm">✉ Send magic link (passwordless)</button>
                 <div className="text-xs text-white/40 leading-relaxed text-center">
                   By continuing you agree to Terms & Privacy. We allow paste + password managers • <span className="text-white/70">WCAG AA Auth</span>. OAuth = no cognitive test needed.
                 </div>
@@ -1473,7 +1548,7 @@ export default function LINGAUX() {
                       </div>
                       <div className="mt-2 text-2xl font-black">{p.price}</div>
                       <div className="text-xs text-white/60">{p.sub}</div>
-                      <button onClick={()=> handleSubscribe("stripe", p.name.toLowerCase() as any)} className={`mt-3 w-full py-2.5 rounded-xl font-black text-sm ${p.popular? "bg-white text-black":"glass"}`}>Choose {p.name}</button>
+                      <button onClick={()=> handleSubscribe("cashfree", p.name.toLowerCase() as any)} className={`mt-3 w-full py-2.5 rounded-xl font-black text-sm ${p.popular? "bg-white text-black":"glass"}`}>Choose {p.name}</button>
                     </div>
                   </div>
                 ))}
@@ -1483,8 +1558,8 @@ export default function LINGAUX() {
                 <div className="text-xs font-black tracking-widest text-white/50">CHOOSE PAYMENT • GLOBAL + INDIA</div>
                 <div className="mt-3 grid sm:grid-cols-2 gap-3">
                   {[
-                    {t:"Stripe", d:"Cards • Apple Pay • Google Pay", icon:"💳", id:"stripe"},
-                    {t:"PayPal", d:"Global • Buyer protection", icon:"🅿️", id:"paypal"},
+                    {t:"Cashfree", d:"UPI • Cards • NetBanking (India)", icon:"₹", id:"cashfree"},
+                    {t:"PayPal (Global)", d:"Cards • Buyer protection • Outside India", icon:"🅿️", id:"paypal"},
                     {t:"Razorpay", d:"UPI • NetBanking • Wallets • Cards (India)", icon:"🇮🇳", id:"razorpay"},
                     {t:"Coins", d:`Wallet: ${refCoins} coins • 80 coins = ₹80 LINGAUX credit • Platform only`, icon:"◆", id:"coins"},
                     {t:"Bank Transfer", d:"NEFT/IMPS • Manual verification in 12h", icon:"🏦", id:"bank"},
@@ -1503,7 +1578,7 @@ export default function LINGAUX() {
                     <span>✓ All Academy courses</span><span>✓ Remove blur + export</span>
                   </div>
                 </div>
-                <div className="mt-3 text-xs text-white/40 text-center">Secure checkout • 7-day refund • UPI • Cards • Netbanking</div>
+                <div className="mt-3 text-xs text-white/40 text-center">Secure checkout • Cashfree & Razorpay (India) • PayPal (Global)</div>
               </div>
             </div>
           </div>
@@ -1522,7 +1597,7 @@ export default function LINGAUX() {
       {/* FOOTER mini */}
       <footer className="border-t border-white/5 glass mt-8">
         <div className="max-w-[1600px] mx-auto px-6 py-6 flex flex-wrap items-center justify-between gap-4 text-xs text-white/40">
-          <span>© 2026 LINGAUX Labs • Made for global speakers • <Link href="/privacy" className="text-white/70 hover:text-white">Privacy</Link> • <Link href="/terms" className="text-white/70 hover:text-white">Terms</Link> • <Link href="/refund" className="text-white/70 hover:text-white">Refund</Link></span>
+          <span>© 2026 LINGAUX Labs • Made for global speakers • <Link href="/privacy" className="text-white/70 hover:text-white">Privacy</Link> • <Link href="/terms" className="text-white/70 hover:text-white">Terms</Link> • <Link href="/cookies" className="text-white/70 hover:text-white">Cookies</Link></span>
           <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"/> LINGAUX is live — check <code className="bg-white/10 px-1.5 py-0.5 rounded">/api/debug/auth</code> for real status</span>
         </div>
       </footer>

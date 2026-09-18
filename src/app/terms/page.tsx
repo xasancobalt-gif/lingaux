@@ -24,7 +24,7 @@ export default function Terms(){
           </section>
           <section>
             <h2 className="text-white font-bold">4. Subscriptions & billing</h2>
-            <p className="mt-2">Pro is billed per plan (monthly / annual / lifetime). Paid plans renew as described at checkout until cancelled. Cancel anytime — Pro stays active until the end of the paid period. Refunds follow our <Link href="/refund" className="text-white underline">Refund Policy</Link>.</p>
+            <p className="mt-2">Pro is billed per plan (monthly / annual / lifetime). Paid plans renew as described at checkout until cancelled. Cancel anytime — Pro stays active until the end of the paid period. For billing help, email lingauxofficial@gmail.com from your account email with your transaction ID.</p>
           </section>
           <section>
             <h2 className="text-white font-bold">5. Coins</h2>
@@ -44,7 +44,7 @@ export default function Terms(){
           </section>
           <section>
             <h2 className="text-white font-bold">9. Contact</h2>
-            <p className="mt-2">support@lingaux.app</p>
+            <p className="mt-2">lingauxofficial@gmail.com</p>
           </section>
         </div>
       </main>

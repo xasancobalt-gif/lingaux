@@ -21,10 +21,15 @@ export async function POST(req: NextRequest) {
     const { name, email, password, track, refCode } = parsed.data;
     const lower = email.toLowerCase();
 
+    const { rateLimit, clientIp } = await import("@/lib/rate-limit");
+    if (!rateLimit(`register:ip:${clientIp(req)}`, 10, 60 * 60 * 1000)) {
+      return NextResponse.json({ error: "Too many requests — try again later." }, { status: 429 });
+    }
+
     const existing = await prisma.user.findUnique({ where: { email: lower } });
     if (existing) return NextResponse.json({ error: "Email already registered. Please sign in." }, { status: 409 });
 
-    const hashed = await bcrypt.hash(password, 10);
+    const hashed = await bcrypt.hash(password, 12);
     const isAdminFlag = isAdmin(lower);
     // Generate referral code for new user
     const { generateReferralCode } = await import("@/lib/referral");

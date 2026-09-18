@@ -66,6 +66,21 @@ model PasswordResetToken {
   @@index([expiresAt])
 }
 
+// Email OTP codes for passwordless sign-in via Gmail. Only the SHA-256 hash
+// of the 6-digit code is stored; raw codes live only in the email.
+model EmailOtp {
+  id        String    @id @default(cuid())
+  email     String
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int       @default(0)
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email])
+  @@index([expiresAt])
+}
+
 model Account {
   id                String  @id @default(cuid())
   userId            String

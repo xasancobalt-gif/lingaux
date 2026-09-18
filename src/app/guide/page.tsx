@@ -21,7 +21,7 @@ export default function Guide(){
           <p className="mt-2 text-white/60">Based on LINGAUX’s 4-step loop. 10 minutes a day. No partner needed.</p>
           <div className="mt-6 grid md:grid-cols-2 gap-4">
             {[
-              {n:"01", t:"Create account & pick track", d:"Sign up with email. Choose Career / Social / Creator / Leadership. This personalizes topics & drills. Takes 60s."},
+              {n:"01", t:"Create account & pick track", d:"Sign up with email — we send a 6-digit Gmail code, no password needed. Choose Career / Social / Creator / Leadership. Takes 60s."},
               {n:"02", t:"Studio → Record 5-min impromptu", d:"Pick a random topic (e.g. ‘Pitch your dream job’). No script. Hit Record, speak 4-5 mins. The discomfort is the data."},
               {n:"03", t:"Wait 24h — Detachment lock", d:"App locks Review for 24h by design. You judge yourself objectively only after a day. A countdown shows when Review unlocks."},
               {n:"04", t:"Triple-Scan Review", d:"Audio (fillers, pace), Video muted (eye, gestures), Transcript (structure) — AI finds your 4 leaks + gives score."},

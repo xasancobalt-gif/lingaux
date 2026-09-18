@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 const schema = z.object({
-  provider: z.enum(["stripe","paypal","razorpay","bank","coins"]),
+  provider: z.enum(["cashfree","paypal","razorpay","bank","coins"]),
   plan: z.enum(["monthly","annual","lifetime"]),
   amount: z.number().optional(),
   currency: z.string().optional(),
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest){
   // and bank (pending-only, no Pro granted) are safe. Local mock upgrades
   // require ALLOW_MOCK_UPGRADE=true.
   const keysConfigured =
-    (provider === "stripe" && !!process.env.STRIPE_SECRET_KEY) ||
+    (provider === "cashfree" && !!process.env.CASHFREE_APP_ID) ||
     (provider === "paypal" && !!process.env.PAYPAL_CLIENT_ID) ||
     (provider === "razorpay" && !!process.env.RAZORPAY_KEY_ID) ||
     provider === "coins" || provider === "bank";
