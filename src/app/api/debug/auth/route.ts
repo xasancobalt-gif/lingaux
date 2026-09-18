@@ -75,5 +75,13 @@ export async function GET() {
     envVarListHint: "set ADMIN_EMAILS in Vercel for future-proofing",
   };
 
+  // 5) Payment config sanity (booleans only — NO secrets)
+  out.payments = {
+    cashfree: !!process.env.CASHFREE_APP_ID && !!process.env.CASHFREE_SECRET_KEY,
+    cashfreeEnv: process.env.CASHFREE_ENV || "unset",
+    razorpay: !!process.env.RAZORPAY_KEY_ID,
+    paypal: !!process.env.PAYPAL_CLIENT_ID,
+  };
+
   return NextResponse.json(out);
 }
