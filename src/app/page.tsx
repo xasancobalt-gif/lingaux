@@ -1829,6 +1829,11 @@ export default function LINGAUX() {
                   )}
                   <span className="text-xs text-white/40 self-center">{openLesson.minutes} min read • narrated audio included</span>
                 </div>
+                {openLesson.videoUrl ? (
+                  <div className="mt-4 rounded-2xl overflow-hidden border border-white/10 aspect-video bg-black">
+                    <iframe src={openLesson.videoUrl.replace("watch?v=","embed/")} className="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture" allowFullScreen title={openLesson.title}/>
+                  </div>
+                ) : null}
                 <div className="mt-4 space-y-3 text-sm text-white/80 leading-relaxed whitespace-pre-line">{openLesson.body}</div>
                 {openLesson.drill ? (
                   <div className="mt-5 glass rounded-xl p-4 border-amber-400/20">

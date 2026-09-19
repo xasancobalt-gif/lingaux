@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
       title: lesson.title,
       body: lesson.body,
       drill: lesson.drill,
+      videoUrl: lesson.videoUrl,
       minutes: lesson.minutes,
       courseTitle: lesson.course.title,
       courseSlug: lesson.course.slug,

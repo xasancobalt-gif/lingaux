@@ -325,6 +325,7 @@ model Lesson {
   title     String
   body      String
   drill     String   @default("")
+  videoUrl  String? // optional video clip (admin-curated; UI hides player when null)
   minutes   Int      @default(10)
   free      Boolean  @default(false)
   createdAt DateTime @default(now())
