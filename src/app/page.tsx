@@ -52,10 +52,93 @@ export default function LINGAUX() {
   // Email OTP (passwordless via Gmail code)
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  // Peer-to-peer practice (3 min/day free, Pro unlimited + chat)
+  const [peer, setPeer] = useState<any|null>(null);
+  const [peerBusy, setPeerBusy] = useState(false);
+  const [peerInput, setPeerInput] = useState("");
   // Academy lesson viewer
   const [openCourse, setOpenCourse] = useState<any|null>(null);
   const [openLesson, setOpenLesson] = useState<any|null>(null);
   const [doneIds, setDoneIds] = useState<string[]>([]);
+  const [lessonLoading, setLessonLoading] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+
+  const loadLesson = async (l:any) => {
+    setOpenLesson(null); setLessonLoading(true);
+    try{
+      const r = await fetch(`/api/courses/lesson?lessonId=${l.id}`);
+      const j = await r.json();
+      if(!r.ok){
+        if(j.code==="PAYWALL"){ triggerPaywall("academy-lesson"); return; }
+        setToast(j.error||"Failed to load lesson"); setTimeout(()=>setToast(null),2500); return;
+      }
+      setOpenLesson(j.lesson);
+    }catch{ setToast("Failed to load lesson"); setTimeout(()=>setToast(null),2500); }
+    finally{ setLessonLoading(false); }
+  };
+
+  const speakLesson = (text: string) => {
+    try{
+      const synth = window.speechSynthesis;
+      if(!synth){ setToast("Audio not supported in this browser"); setTimeout(()=>setToast(null),2500); return; }
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = 0.95; u.lang = "en-US";
+      u.onend = ()=>setSpeaking(false);
+      u.onerror = ()=>setSpeaking(false);
+      synth.speak(u);
+      setSpeaking(true);
+    }catch{ setToast("Audio not supported"); setTimeout(()=>setToast(null),2500); }
+  };
+  const stopSpeak = () => { try{ window.speechSynthesis?.cancel(); }catch{} setSpeaking(false); };
+
+  // Peer polling: refresh status every 3s while on the Practice tab
+  useEffect(()=>{
+    if(active!=="practice" || status!=="authenticated") return;
+    let alive = true;
+    const tick = async () => {
+      try{ const r = await fetch("/api/peer/status"); if(r.ok){ const j = await r.json(); if(alive) setPeer(j); } }catch{}
+    };
+    tick();
+    const iv = setInterval(tick, 3000);
+    return ()=>{ alive = false; clearInterval(iv); };
+  },[active, status]);
+
+  const joinPeer = async () => {
+    setPeerBusy(true);
+    try{
+      const r = await fetch("/api/peer/join",{method:"POST"});
+      const j = await r.json();
+      if(!r.ok){ setToast(j.error||"Could not join"); setTimeout(()=>setToast(null),2500); return; }
+      const s = await fetch("/api/peer/status").then(x=>x.json()).catch(()=>null);
+      setPeer(s);
+      if(j.matched) setToast(`Matched with ${j.partner?.name || "a peer"} — say hi!`); setTimeout(()=>setToast(null),2500);
+    }catch{ setToast("Could not join — try again"); setTimeout(()=>setToast(null),2500); }
+    finally{ setPeerBusy(false); }
+  };
+
+  const leavePeer = async () => {
+    setPeerBusy(true);
+    try{ await fetch("/api/peer/leave",{method:"POST"}); }catch{}
+    setPeer((p:any)=> p ? {...p, state:"idle"} : p);
+    setPeerBusy(false);
+  };
+
+  const sendPeerMsg = async () => {
+    const t = peerInput.trim();
+    if(!t || !peer?.sessionId) return;
+    setPeerInput("");
+    try{
+      const r = await fetch("/api/peer/message",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:peer.sessionId, text:t})});
+      const j = await r.json();
+      if(!r.ok){
+        if(j.code==="PAYWALL"){ triggerPaywall("peer-chat"); return; }
+        setToast(j.error||"Failed"); setTimeout(()=>setToast(null),2500); return;
+      }
+      setPeer((p:any)=> p ? {...p, messages:[...(p.messages||[]), j.message]} : p);
+    }catch{ setToast("Failed to send"); setTimeout(()=>setToast(null),2500); }
+  };
   const [topic, setTopic] = useState(topics[0]);
   // No fake demo state: fresh accounts start with zero recordings and no lock.
   // Real values load from /api/recordings once authenticated (see effect below).
@@ -64,6 +147,8 @@ export default function LINGAUX() {
   const [apiStatus, setApiStatus] = useState<string>("Backend wired: Prisma + Auth.js + Supabase + OpenAI");
   // Live camera
   const videoRef = useRef<HTMLVideoElement>(null);
+  const videoWrapRef = useRef<HTMLDivElement>(null);
+  const [frame, setFrame] = useState<"16/9"|"9/16"|"fill">("16/9");
   const mediaRecorderRef = useRef<MediaRecorder|null>(null);
   const [stream, setStream] = useState<MediaStream|null>(null);
   const [cameraError, setCameraError] = useState<string|null>(null);
@@ -574,7 +659,7 @@ export default function LINGAUX() {
                 ) : (
                   <div title={myName} className="w-9 h-9 rounded-full bg-white text-black grid place-items-center font-black">{avatarOf(session?.user?.name||session?.user?.email)}</div>
                 )}
-                <button onClick={()=> signOut({ callbackUrl: "/" })} title="Log out" className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-full glass text-[13px] font-bold hover:bg-white/10 transition">⏻<span className="hidden sm:inline">Log out</span></button>
+                <button onClick={()=> signOut({ callbackUrl: "/" })} title="Log out" className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-full glass text-[13px] font-bold hover:bg-white/10 transition">⏻ Log out</button>
               </>
             ) : (
               <>
@@ -899,7 +984,30 @@ export default function LINGAUX() {
                       </div>
                     </div>
 
-                    <div className="mt-6 aspect-[16/9] rounded-2xl bg-black relative overflow-hidden border border-white/10">
+                    <div className="mt-6 flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-bold text-white/50 mr-1">Frame:</span>
+                      {[
+                        {k:"16:9", v:"16/9"},
+                        {k:"9:16", v:"9/16"},
+                        {k:"Fill", v:"fill"},
+                      ].map(f=>(
+                        <button key={f.k} onClick={()=>setFrame(f.v as any)} className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition ${frame===f.v? "bg-white text-black":"glass text-white/70 hover:text-white"}`}>{f.k}</button>
+                      ))}
+                      <button onClick={()=>{
+                        const el = videoWrapRef.current;
+                        if(!el) return;
+                        try{
+                          if(document.fullscreenElement){ document.exitFullscreen(); }
+                          else { el.requestFullscreen?.(); }
+                        }catch{}
+                      }} className="ml-auto px-3.5 py-1.5 rounded-full text-xs font-bold glass text-white/70 hover:text-white transition">
+                        {typeof document!=="undefined" && document.fullscreenElement ? "Minimize" : "Full screen"}
+                      </button>
+                    </div>
+                    <div ref={videoWrapRef} className={`mt-3 rounded-2xl bg-black relative overflow-hidden border border-white/10 ${frame==="9/16"? "aspect-[9/16] max-w-[320px] mx-auto" : frame==="fill"? "fixed inset-0 z-[60] rounded-none" : "aspect-[16/9]"}`}>
+                      {frame==="fill" && (
+                        <button onClick={()=>{ try{ document.exitFullscreen?.(); }catch{} setFrame("16/9"); }} className="absolute top-3 right-3 z-10 px-3 py-1.5 rounded-full text-xs font-bold bg-white text-black">Minimize ✕</button>
+                      )}
                       {/* Live camera */}
                       <video ref={videoRef} autoPlay muted playsInline className={`absolute inset-0 w-full h-full object-cover ${previewUrl ? "hidden" : ""}`} />
                       {previewUrl && (
@@ -1054,6 +1162,29 @@ export default function LINGAUX() {
                 {transcript && <div className="mt-3 glass rounded-xl p-3 text-xs leading-relaxed max-h-24 overflow-auto"><b>Latest transcript (Whisper):</b> {transcript}</div>}
               </div>
 
+              {realReview && (()=>{
+                const s = [
+                  { k:"audio", v: realReview.audioScore ?? 0 },
+                  { k:"video", v: realReview.videoScore ?? 0 },
+                  { k:"transcript", v: realReview.transcriptScore ?? 0 },
+                ].sort((a,b)=>a.v-b.v)[0];
+                const advice: Record<string,string> = {
+                  audio: "your AUDIO scored lowest — this week drill the Pause Drill daily (Practice tab, 10 min). Kill 'umm' with 1.5s silence.",
+                  video: "your VIDEO scored lowest — this week fix eye contact + gestures (Academy: Voice & Body Masterclass, lesson 4-5).",
+                  transcript: "your STRUCTURE scored lowest — rewrite your last closing line in one sentence (Academy: 30-Day Game Plan, lesson 6).",
+                };
+                const allStrong = (realReview.audioScore ?? 0) >= 8 && (realReview.videoScore ?? 0) >= 8 && (realReview.transcriptScore ?? 0) >= 8;
+                const msg = allStrong
+                  ? "All three scans are strong — level up: pick a harder topic, speak 5 full minutes, and post it to the Community for peer feedback."
+                  : `AI next step: ${advice[s.k]}`;
+                return (
+                  <div className="glass-card rounded-2xl p-4 border-violet-400/20 flex flex-wrap items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-white text-black grid place-items-center font-black shrink-0">AI</div>
+                    <div className="flex-1 min-w-0 text-sm text-white/85">{msg}</div>
+                    <span className="text-xs text-white/50">Audio {realReview.audioScore ?? "—"}/10 • Video {realReview.videoScore ?? "—"}/10 • Structure {realReview.transcriptScore ?? "—"}/10</span>
+                  </div>
+                );
+              })()}
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                 {[
                   {id:"audio", label:"Audio Only", sub:"Fillers • Pace • Monotone"},
@@ -1206,6 +1337,70 @@ export default function LINGAUX() {
                         <div key={i} className={`aspect-square grid place-items-center rounded-lg text-xs font-bold border ${i<11? "bg-emerald-500 text-white border-emerald-400": i===11? "bg-white text-black border-white": "glass border-white/10 text-white/60"}`}>{i+1}</div>
                       ))}
                     </div>
+                  </div>
+                  <div className="glass-card rounded-2xl p-5 border-violet-400/20">
+                    <div className="flex items-center justify-between">
+                      <div className="font-bold text-sm">Practice together <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-600 text-white font-black align-middle">LIVE</span></div>
+                      {peer?.state==="matched" && peer?.timeLeft!==null && peer?.timeLeft!==undefined ? (
+                        <span className="text-xs font-black px-2.5 py-1 rounded-full bg-white text-black">{Math.floor(peer.timeLeft/60)}:{String(peer.timeLeft%60).padStart(2,"0")} left</span>
+                      ) : peer?.state==="matched" ? (
+                        <span className="text-xs font-black px-2.5 py-1 rounded-full bg-emerald-500 text-white">{Math.floor((peer.elapsed||0)/60)}:{String((peer.elapsed||0)%60).padStart(2,"0")}</span>
+                      ) : (
+                        <span className="text-xs px-2 py-1 rounded-full glass">{peer?.waitingCount ? `${peer.waitingCount} in queue` : "Voice rooms"}</span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs text-white/60">
+                      {isPro ? "Unlimited peer practice + chat with your matched partner." : "3 minutes/day free — pair with a learner and speak. Pro: unlimited + chat."}
+                    </p>
+                    {peer?.state==="matched" ? (
+                      <div className="mt-3 space-y-3">
+                        <div className="flex items-center gap-3 glass rounded-xl p-3">
+                          {peer.partner?.image ? <img src={peer.partner.image} className="w-9 h-9 rounded-full"/> : <div className="w-9 h-9 rounded-full bg-white text-black grid place-items-center font-black text-sm">{avatarOf(peer.partner?.name)}</div>}
+                          <div className="flex-1 min-w-0"><div className="text-sm font-bold truncate">{peer.partner?.name || "Peer"}</div><div className="text-xs text-white/50">Connected — speak English only, 50/50 airtime</div></div>
+                          <button disabled={peerBusy} onClick={leavePeer} className="px-3 py-1.5 rounded-full glass text-xs font-bold">Leave</button>
+                        </div>
+                        <div className="glass rounded-xl p-3 text-xs text-amber-300 border-amber-400/20">Suggested opener: “What are you practicing today — and why?”</div>
+                        {isPro ? (
+                          <div className="space-y-2">
+                            <div className="max-h-32 overflow-y-auto space-y-1.5">
+                              {(peer.messages||[]).map((m:any)=>(
+                                <div key={m.id} className={`text-xs px-2.5 py-1.5 rounded-xl max-w-[85%] ${m.userId===(session?.user as any)?.id ? "ml-auto bg-white text-black" : "bg-white/10 text-white/85"}`}>{m.text}</div>
+                              ))}
+                            </div>
+                            <div className="flex gap-2">
+                              <input value={peerInput} onChange={e=>setPeerInput(e.target.value)} onKeyDown={e=>{ if(e.key==="Enter") sendPeerMsg(); }} placeholder="Message your peer…" className="flex-1 glass rounded-full px-3 py-2 text-xs bg-white/[0.06] border-white/10 outline-none focus:border-white/20"/>
+                              <button onClick={sendPeerMsg} className="px-4 py-2 rounded-full bg-white text-black text-xs font-black">Send</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button onClick={()=>triggerPaywall("peer-chat")} className="w-full py-2 rounded-xl glass text-xs font-bold text-white/80">💬 Chat is a Pro feature — unlock</button>
+                        )}
+                      </div>
+                    ) : peer?.state==="waiting" ? (
+                      <div className="mt-3 space-y-3">
+                        <div className="glass rounded-xl p-3 text-center"><div className="text-sm font-bold animate-pulse">Looking for a practice partner…</div><div className="text-xs text-white/50 mt-1">You'll be matched automatically — keep this tab open</div></div>
+                        <button disabled={peerBusy} onClick={leavePeer} className="w-full py-2 rounded-xl glass text-xs font-bold">Leave queue</button>
+                      </div>
+                    ) : peer?.state==="limit" ? (
+                      <div className="mt-3 space-y-3">
+                        <div className="glass rounded-xl p-3 text-center text-xs text-white/70">{peer.message}</div>
+                        <button onClick={()=>triggerPaywall("peer-limit")} className="w-full py-2.5 rounded-xl bg-white text-black text-xs font-black">Go Pro — unlimited peer practice</button>
+                      </div>
+                    ) : peer?.state==="ended" ? (
+                      <div className="mt-3 space-y-3">
+                        <div className="glass rounded-xl p-3 text-center text-xs text-white/70">{peer.message}</div>
+                        <button disabled={peerBusy} onClick={joinPeer} className="w-full py-2 rounded-xl bg-white text-black text-xs font-black">Rejoin queue</button>
+                      </div>
+                    ) : (
+                      <div className="mt-3 space-y-3">
+                        {status!=="authenticated" ? (
+                          <button onClick={()=>{ setAuthMode("signin"); setShowAuth(true); }} className="w-full py-2.5 rounded-xl bg-white text-black text-xs font-black">Sign in to practice with peers</button>
+                        ) : (
+                          <button disabled={peerBusy} onClick={joinPeer} className="w-full py-2.5 rounded-xl bg-white text-black text-xs font-black disabled:opacity-60">{peerBusy ? "Joining…" : "Join the queue — get matched"}</button>
+                        )}
+                        <div className="text-[11px] text-white/40 text-center">Voice via your device • be kind • English preferred</div>
+                      </div>
+                    )}
                   </div>
                   <div className="glass-card rounded-2xl p-5">
                     <div className="font-bold text-sm">Solo Practice (No partner needed)</div>
@@ -1382,8 +1577,21 @@ export default function LINGAUX() {
                   </div>
                   <div className="mt-6 space-y-2">
                     <div className="flex justify-between text-sm"><span className="text-white/60">Email</span><span className="font-medium">{status==="authenticated" ? session?.user?.email : "—"}</span></div>
-                    <div className="flex justify-between text-sm"><span className="text-white/60">Password</span><button className="text-xs px-3 py-1 rounded-full glass">Change</button></div>
+                    <div className="flex justify-between text-sm"><span className="text-white/60">Password</span><Link href="/forgot-password" className="text-xs px-3 py-1 rounded-full glass">Change</Link></div>
                     <div className="flex justify-between text-sm"><span className="text-white/60">Two-factor</span><span className="text-white/50 text-xs font-bold">Set up in Security</span></div>
+                  </div>
+                  <div className="mt-6 flex flex-wrap gap-2">
+                    {status==="authenticated" ? (
+                      <>
+                        <button onClick={()=> signOut({ callbackUrl: "/" })} className="flex-1 min-w-[120px] py-2.5 rounded-xl glass text-sm font-bold">⏻ Log out</button>
+                        <button onClick={async()=>{ if(!confirm("Sign out on all devices?")) return; await fetch("/api/auth/sessions/revoke",{method:"POST"}); await signOut({callbackUrl:"/"}); }} className="flex-1 min-w-[160px] py-2.5 rounded-xl glass text-sm font-bold">Sign out all devices</button>
+                      </>
+                    ) : (
+                      <>
+                        <button onClick={()=>{ setAuthMode("signin"); setShowAuth(true); }} className="flex-1 min-w-[120px] py-2.5 rounded-xl bg-white text-black text-sm font-black">Log in</button>
+                        <button onClick={()=>{ setAuthMode("signup"); setShowAuth(true); }} className="flex-1 min-w-[120px] py-2.5 rounded-xl glass text-sm font-bold">Sign up</button>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="space-y-4">
@@ -1400,7 +1608,6 @@ export default function LINGAUX() {
                       {!isPro ? (
                       <>
                       <button onClick={()=>triggerPaywall("profile")} className="mt-4 w-full py-3 rounded-xl bg-white text-black font-black">Upgrade Now</button>
-                      {status==="authenticated" && (<button onClick={async()=>{ if(!confirm("Sign out on all devices?")) return; await fetch("/api/auth/sessions/revoke",{method:"POST"}); await signOut({callbackUrl:"/"}); }} className="mt-3 w-full py-2.5 rounded-xl glass text-sm font-bold">Sign out all devices</button>)}
                       </>
                       ):(
                         <button onClick={()=>{setIsProLocal(false); setToast("Downgraded to Free"); setTimeout(()=>setToast(null),2000);}} className="mt-4 w-full py-3 rounded-xl glass font-bold">Manage billing • Downgrade</button>
@@ -1482,7 +1689,10 @@ export default function LINGAUX() {
                   <input value={name} onChange={e=>setName(e.target.value)} placeholder="Full name" className="w-full glass rounded-xl px-4 py-3 text-sm bg-white/[0.06] border-white/10 placeholder:text-white/40 outline-none focus:border-white/20"/>
                 )}
                 <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@company.com" autoComplete="email" className="w-full glass rounded-xl px-4 py-3 text-sm bg-white/[0.06] border-white/10 placeholder:text-white/40 outline-none focus:border-white/20"/>
-                {authMode!=="otp" && (<input value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password • min 8 chars" type="password" autoComplete={authMode==="signup"?"new-password":"current-password"} className="w-full glass rounded-xl px-4 py-3 text-sm bg-white/[0.06] border-white/10 placeholder:text-white/40 outline-none focus:border-white/20"/>)}
+                {authMode!=="otp" && (<div className="relative">
+                  <input value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password • min 8 chars" type={showPw? "text":"password"} autoComplete={authMode==="signup"?"new-password":"current-password"} className="w-full glass rounded-xl px-4 py-3 pr-16 text-sm bg-white/[0.06] border-white/10 placeholder:text-white/40 outline-none focus:border-white/20"/>
+                  <button onClick={()=>setShowPw(v=>!v)} type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-white/60 hover:text-white px-2 py-1 rounded-full glass">{showPw? "Hide":"Show"}</button>
+                </div>)}
                 {need2FA && (
                   <input value={twoFactorCode} onChange={e=>setTwoFactorCode(e.target.value.replace(/\D/g,"").slice(0,6))} placeholder="2FA code • 6 digits (if enabled)" inputMode="numeric" className="w-full glass rounded-xl px-4 py-3 text-sm bg-amber-500/10 border-amber-400/30 placeholder:text-white/40 outline-none focus:border-amber-400/50"/>
                 )}
@@ -1605,11 +1815,19 @@ export default function LINGAUX() {
             </div>
             {openLesson ? (
               <div className="p-5">
-                <button onClick={()=>setOpenLesson(null)} className="text-xs text-white/60 hover:text-white">← All lessons</button>
+                <button onClick={()=>{ stopSpeak(); setOpenLesson(null); }} className="text-xs text-white/60 hover:text-white">← All lessons</button>
                 <div className="mt-2 flex items-center gap-2">
                   <span className="w-8 h-8 rounded-xl bg-white text-black grid place-items-center font-black shrink-0">{String(openLesson.order).padStart(2,"0")}</span>
                   <div className="font-bold text-sm">{openLesson.title}</div>
                   {doneIds.includes(openLesson.id) && <span className="ml-auto text-xs px-2 py-1 rounded-full bg-emerald-500 text-white font-bold">✓ Done</span>}
+                </div>
+                <div className="mt-3 flex gap-2">
+                  {!speaking ? (
+                    <button onClick={()=>speakLesson(`${openLesson.title}. ${openLesson.body}`)} className="px-4 py-2 rounded-full glass text-xs font-bold">▶ Listen to this lesson</button>
+                  ) : (
+                    <button onClick={stopSpeak} className="px-4 py-2 rounded-full bg-red-500 text-white text-xs font-bold animate-pulse">■ Stop audio</button>
+                  )}
+                  <span className="text-xs text-white/40 self-center">{openLesson.minutes} min read • narrated audio included</span>
                 </div>
                 <div className="mt-4 space-y-3 text-sm text-white/80 leading-relaxed whitespace-pre-line">{openLesson.body}</div>
                 {openLesson.drill ? (
@@ -1632,18 +1850,21 @@ export default function LINGAUX() {
                   ) : (
                     <div className="flex-1 py-3 rounded-xl glass font-bold text-sm text-center">Completed ✓</div>
                   )}
-                  <button onClick={()=>{ const next=(openCourse.items||[]).find((l:any)=>l.order===openLesson.order+1); if(next){ if(next.free||isPro){ setOpenLesson(next); } else { triggerPaywall("academy-lesson"); } } else { setToast("Course complete — pick another"); setTimeout(()=>setToast(null),2500); } }} className="px-5 py-3 rounded-xl glass font-bold text-sm">Next →</button>
+                  <button onClick={()=>{ const next=(openCourse.items||[]).find((l:any)=>l.order===openLesson.order+1); if(next){ if(next.free||isPro){ stopSpeak(); loadLesson(next); } else { triggerPaywall("academy-lesson"); } } else { setToast("Course complete — pick another"); setTimeout(()=>setToast(null),2500); } }} className="px-5 py-3 rounded-xl glass font-bold text-sm">Next →</button>
                 </div>
               </div>
             ) : (
               <div className="p-5 space-y-2">
                 {(openCourse.items||[]).map((l:any)=>(
-                  <button key={l.id} onClick={()=>{ if(l.free||isPro){ setOpenLesson(l); } else { triggerPaywall("academy-lesson"); } }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition ${l.free||isPro ? "glass hover:bg-white/[0.08]" : "glass border-amber-400/20 opacity-80"}`}>
+                  <button key={l.id} onClick={()=>{ if(l.free||isPro){ loadLesson(l); } else { triggerPaywall("academy-lesson"); } }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition ${l.free||isPro ? "glass hover:bg-white/[0.08]" : "glass border-amber-400/20 opacity-80"}`}>
                     <span className="w-8 h-8 rounded-xl bg-white text-black grid place-items-center font-black shrink-0 text-xs">{String(l.order).padStart(2,"0")}</span>
-                    <span className="flex-1 min-w-0"><span className="text-sm font-bold block truncate">{l.title}</span><span className="text-xs text-white/50">{l.minutes} min</span></span>
+                    <span className="flex-1 min-w-0"><span className="text-sm font-bold block truncate">{l.title}</span><span className="text-xs text-white/50">{l.minutes} min • lesson + drill + audio</span></span>
                     {doneIds.includes(l.id) ? <span className="w-6 h-6 rounded-full bg-emerald-500 text-white grid place-items-center text-xs shrink-0">✓</span> : (!l.free && !isPro ? <span className="text-xs px-2 py-1 rounded-full bg-amber-400 text-black font-black shrink-0">PRO</span> : null)}
                   </button>
                 ))}
+                {lessonLoading && (
+                  <div className="glass rounded-xl p-4 text-sm text-white/60 text-center">Loading lesson…</div>
+                )}
               </div>
             )}
           </div>

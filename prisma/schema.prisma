@@ -52,6 +52,10 @@ model User {
   coinTx         CoinTransaction[]
   resetPasswordTokens PasswordResetToken[] @relation("ResetTokens")
   lessonProgress LessonProgress[]
+  peerQueueEntry PeerQueue?
+  peerSessionsA  PeerSession[] @relation("PeerSessionsA")
+  peerSessionsB  PeerSession[] @relation("PeerSessionsB")
+  peerMessages   PeerMessage[]
 }
 
 model PasswordResetToken {
@@ -340,4 +344,41 @@ model LessonProgress {
 
   @@unique([userId, lessonId])
   @@index([userId])
+}
+
+// Peer-to-peer speaking practice: two users matched from a FIFO queue into a
+// live voice session. Free: 3 min/day total. Pro: unlimited + text chat.
+model PeerQueue {
+  id       String   @id @default(cuid())
+  userId   String   @unique
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt DateTime @default(now())
+}
+
+model PeerSession {
+  id        String    @id @default(cuid())
+  userAId   String
+  userA     User      @relation("PeerSessionsA", fields: [userAId], references: [id], onDelete: Cascade)
+  userBId   String
+  userB     User      @relation("PeerSessionsB", fields: [userBId], references: [id], onDelete: Cascade)
+  active    Boolean   @default(true)
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  messages  PeerMessage[]
+
+  @@index([userAId])
+  @@index([userBId])
+  @@index([active])
+}
+
+model PeerMessage {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   PeerSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
 }

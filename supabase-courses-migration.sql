@@ -392,4 +392,4 @@ Day 30 deliverable: 20+ posted videos, one retention graph you understand, and t
 ON CONFLICT ("courseId", "order") DO UPDATE SET "title"=EXCLUDED."title", "body"=EXCLUDED."body", "drill"=EXCLUDED."drill", "minutes"=EXCLUDED."minutes", "free"=EXCLUDED."free";
 
 -- Verify:
--- SELECT c.slug, count(l.id) FROM "Course" c JOIN "Lesson" l ON l."courseId"=c.id GROUP BY c.slug ORDER BY c.slug;
+-- SELECT c.slug, count(l.id) AS lessons FROM "Course" c LEFT JOIN "Lesson" l ON l."courseId" = c.id GROUP BY c.slug ORDER BY c.slug;

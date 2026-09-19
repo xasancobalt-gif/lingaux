@@ -42,7 +42,19 @@ export async function sendEmail({
   const from = `LINGAUX <${(process.env.GMAIL_USER || "").trim()}>`;
   try {
     const transporter = makeTransporter();
-    await transporter.sendMail({ from, to, subject, text, html });
+    await transporter.sendMail({
+      from,
+      to,
+      subject,
+      text,
+      html,
+      // Deliverability: one-click unsubscribe signal (RFC 8058) + list headers
+      // reduce Gmail's spam scoring for transactional auth mails.
+      headers: {
+        "List-Unsubscribe": "<mailto:lingauxofficial@gmail.com?subject=unsubscribe>",
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      },
+    });
   } catch (err) {
     console.error("sendEmail (Gmail SMTP) error:", err);
     throw new Error("Failed to send email");
