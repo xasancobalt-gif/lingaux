@@ -32,21 +32,39 @@ async function main(){
   // seeded on purpose — every account must see only its own real data
   // (or an honest empty state). Catalog below is real product content.
 
-  // Courses — LINGAUX Academy
-  const courseCount = await prisma.course.count();
-  if(courseCount===0){
-    await prisma.course.createMany({
-      data:[
-        { title:"The 30-Day Game Plan", slug:"30-day-game-plan", track:"general", lessons:8, duration:"8 lessons • LINGAUX method", free:true, image:"https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=600&auto=format&fit=crop&q=60", videoUrl:"https://www.youtube.com/embed/dQw4w9WgXcQ", description:"The science-backed loop: record 5-min, wait 24h, triple-scan, fix 1/week. Your foundation.", isActive:true },
-        { title:"Storytelling for Work", slug:"storytelling-for-work", track:"career", lessons:12, duration:"12 lessons • STAR + Hero arc", free:false, image:"https://images.unsplash.com/photo-1552664730-d307ca884978?w=600&auto=format&fit=crop&q=60", videoUrl:"https://www.youtube.com/embed/9bZkp7q19f0", description:"STAR answers, hero arc, executive presence for interviews & meetings.", isActive:true },
-        { title:"Voice & Body Masterclass", slug:"voice-body-masterclass", track:"creator", lessons:10, duration:"10 lessons • Pace, pause, gesture", free:false, image:"https://images.unsplash.com/photo-1475721027785-f74eccf877e2?w=600&auto=format&fit=crop&q=60", videoUrl:"https://www.youtube.com/embed/kJQP7kiw5Fk", description:"Pace, pause, vocal variety, eye contact, gesture system.", isActive:true },
-        { title:"Interview OS", slug:"interview-os", track:"career", lessons:6, duration:"6 lessons • FAANG answers", free:false, image:"https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=600&auto=format&fit=crop&q=60", videoUrl:"https://www.youtube.com/embed/OPf0YbXqDm0", description:"FAANG-style STAR answers, salary negotiation, whiteboard communication.", isActive:true },
-        { title:"Network Without Fear", slug:"network-without-fear", track:"social", lessons:5, duration:"5 lessons • Small talk system", free:true, image:"https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=600&auto=format&fit=crop&q=60", videoUrl:"https://www.youtube.com/embed/2Vv-BfVoq4g", description:"Small talk, networking, dating conversations — system for social confidence.", isActive:true },
-        { title:"Creator Voice Lab", slug:"creator-voice-lab", track:"creator", lessons:7, duration:"7 lessons • Hook + retention", free:false, image:"https://images.unsplash.com/photo-1492724441997-5dc865305da7?w=600&auto=format&fit=crop&q=60", videoUrl:"https://www.youtube.com/embed/hT_nvWreIhg", description:"Reels, podcasts, pitching with hook, retention, CTA.", isActive:true },
-      ]
+  // Courses — LINGAUX Academy (full lesson content from course-content.json).
+  // Idempotent: refreshes titles/descriptions and upserts every lesson body,
+  // so content edits land on re-seed without duplicating rows.
+  const fs = await import("fs");
+  const path = await import("path");
+  const contentFile = path.join(__dirname, "course-content.json");
+  const catalog = JSON.parse(fs.readFileSync(contentFile, "utf-8")) as {
+    courses: {
+      slug: string; title: string; track: string; free: boolean; duration: string;
+      image: string; videoUrl: string | null; description: string;
+      lessons: { o: number; t: string; min: number; body: string; drill: string }[];
+    }[];
+  };
+
+  let lessonCount = 0;
+  for (const c of catalog.courses) {
+    const course = await prisma.course.upsert({
+      where: { slug: c.slug },
+      update: { title: c.title, track: c.track, free: c.free, duration: c.duration, image: c.image, videoUrl: c.videoUrl, description: c.description, lessons: c.lessons.length, isActive: true },
+      create: { title: c.title, slug: c.slug, track: c.track, free: c.free, duration: c.duration, image: c.image, videoUrl: c.videoUrl, description: c.description, lessons: c.lessons.length, isActive: true },
     });
-    console.log("Courses seeded: 6");
+    for (const l of c.lessons) {
+      // Free rule: free courses fully free; paid courses keep first 3 lessons free.
+      const isFree = c.free || l.o <= 3;
+      await prisma.lesson.upsert({
+        where: { courseId_order: { courseId: course.id, order: l.o } },
+        update: { title: l.t, body: l.body, drill: l.drill, minutes: l.min, free: isFree },
+        create: { courseId: course.id, order: l.o, title: l.t, body: l.body, drill: l.drill, minutes: l.min, free: isFree },
+      });
+      lessonCount++;
+    }
   }
+  console.log(`Courses seeded: ${catalog.courses.length}, lessons: ${lessonCount}`);
 
   // Products
   const prodCount = await prisma.product.count();

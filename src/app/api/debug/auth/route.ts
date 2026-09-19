@@ -83,5 +83,40 @@ export async function GET() {
     paypal: !!process.env.PAYPAL_CLIENT_ID,
   };
 
+  // 6) Full DB audit — table counts + orphans (no sensitive values)
+  if (out.db?.ok) {
+    try {
+      const { prisma } = await import("@/lib/prisma");
+      const counts: Record<string, any> = {};
+      for (const t of ["User","Recording","Review","CommunityPost","Comment","Subscription","Referral","CoinTransaction","Ticket","Product","Course","Lesson","LessonProgress","EmailOtp","PasswordResetToken"]) {
+        try {
+          (counts as any)[t] = await (prisma as any)[t.charAt(0).toLowerCase() + t.slice(1)].count();
+        } catch { counts[t] = "n/a"; }
+      }
+      out.audit = { counts };
+
+      // Orphans / integrity (all counts, no data)
+      const orphans: Record<string, any> = {};
+      try {
+        orphans.recordingsNoUser = (await prisma.$queryRawUnsafe(`SELECT count(*)::int AS c FROM "Recording" r LEFT JOIN "User" u ON u.id=r."userId" WHERE u.id IS NULL`) as any[])[0].c;
+        orphans.reviewsNoRecording = (await prisma.$queryRawUnsafe(`SELECT count(*)::int AS c FROM "Review" v LEFT JOIN "Recording" r ON r.id=v."recordingId" WHERE r.id IS NULL`) as any[])[0].c;
+        orphans.lessonsNoCourse = (await prisma.$queryRawUnsafe(`SELECT count(*)::int AS c FROM "Lesson" l LEFT JOIN "Course" c ON c.id=l."courseId" WHERE c.id IS NULL`) as any[])[0].c;
+        orphans.usersNoRefCode = (await prisma.$queryRawUnsafe(`SELECT count(*)::int AS c FROM "User" u WHERE u."referralCode" IS NULL`) as any[])[0].c;
+        orphans.expiredLiveOtps = (await prisma.$queryRawUnsafe(`SELECT count(*)::int AS c FROM "EmailOtp" WHERE "usedAt" IS NULL AND "expiresAt" < NOW()`) as any[])[0].c;
+      } catch (e: any) {
+        orphans.error = ((e?.message || "") + "").slice(0, 200);
+      }
+      out.audit.orphans = orphans;
+
+      // Course content coverage (lessons per course)
+      try {
+        const perCourse: any[] = await prisma.$queryRawUnsafe(`SELECT c.slug, count(l.id)::int AS lessons FROM "Course" c LEFT JOIN "Lesson" l ON l."courseId"=c.id GROUP BY c.slug ORDER BY c.slug`);
+        out.audit.courses = perCourse;
+      } catch {}
+    } catch (e: any) {
+      out.audit = { error: ((e?.message || "") + "").slice(0, 300) };
+    }
+  }
+
   return NextResponse.json(out);
 }

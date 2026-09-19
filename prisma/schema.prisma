@@ -51,6 +51,7 @@ model User {
   tickets        Ticket[]
   coinTx         CoinTransaction[]
   resetPasswordTokens PasswordResetToken[] @relation("ResetTokens")
+  lessonProgress LessonProgress[]
 }
 
 model PasswordResetToken {
@@ -307,4 +308,36 @@ model Course {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  items       Lesson[]
+}
+
+// Academy lesson content. `free` is per-lesson: free courses are fully free,
+// paid courses keep their first 3 lessons free.
+model Lesson {
+  id        String   @id @default(cuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  order     Int
+  title     String
+  body      String
+  drill     String   @default("")
+  minutes   Int      @default(10)
+  free      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  progress  LessonProgress[]
+
+  @@unique([courseId, order])
+  @@index([courseId])
+}
+
+model LessonProgress {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId String
+  lesson   Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  doneAt   DateTime @default(now())
+
+  @@unique([userId, lessonId])
+  @@index([userId])
 }

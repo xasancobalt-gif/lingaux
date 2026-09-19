@@ -52,6 +52,10 @@ export default function LINGAUX() {
   // Email OTP (passwordless via Gmail code)
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
+  // Academy lesson viewer
+  const [openCourse, setOpenCourse] = useState<any|null>(null);
+  const [openLesson, setOpenLesson] = useState<any|null>(null);
+  const [doneIds, setDoneIds] = useState<string[]>([]);
   const [topic, setTopic] = useState(topics[0]);
   // No fake demo state: fresh accounts start with zero recordings and no lock.
   // Real values load from /api/recordings once authenticated (see effect below).
@@ -1031,7 +1035,7 @@ export default function LINGAUX() {
                       latestRecordings.length ? (
                         <span>Latest: <b>{latestRecordings[0].topic.slice(0,40)}</b> • {new Date(latestRecordings[0].recordedAt).toLocaleString()} • {latestRecordings[0].status} {realReview ? `• Score ${realReview.overallScore}` : "• No review yet (24h lock or Pro needed)"}</span>
                       ) : <span>No recordings yet — go to Studio and hit Record. DB is wired.</span>
-                    ) : <span>Sign in to see your real recordings from DB. Showing mock preview below.</span>}
+                    ) : <span>Sign in to see your real recordings from the database.</span>}
                   </div>
                   {latestRecordings[0] && !realReview && (
                     <button onClick={async()=>{
@@ -1227,9 +1231,10 @@ export default function LINGAUX() {
                 </div>
               </div>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {(courses.length ? courses : [
-                  {title:"The 30-Day Game Plan", slug:"30-day-game-plan", duration:"8 lessons • LINGAUX method", free:true, image:"https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=600&auto=format&fit=crop&q=60"} as any,
-                ]).map((c:any)=>(
+                {courses.length===0 && (
+                  <div className="glass-card rounded-2xl p-8 text-center"><div className="text-sm text-white/60">Courses are loading — refresh in a moment.</div></div>
+                )}
+                {courses.map((c:any)=>(
                   <div key={c.slug || c.t} className="group glass-card rounded-2xl overflow-hidden">
                     <div className="h-36 relative overflow-hidden">
                       <img src={c.image || c.img} className="w-full h-full object-cover group-hover:scale-[1.03] transition duration-500" alt={c.title || c.t}/>
@@ -1240,7 +1245,7 @@ export default function LINGAUX() {
                     <div className="p-4">
                       <div className="font-bold text-sm leading-tight">{c.title || c.t}</div>
                       <div className="text-xs text-white/50 mt-1">{c.duration || c.l}</div>
-                      <button onClick={()=> (c.free || isPro) ? setToast(`Opening ${c.title||c.t}…`) : triggerPaywall("academy-lesson")} className={`mt-3 w-full py-2 rounded-xl font-bold text-sm ${ (c.free||isPro)? "bg-white text-black":"glass border-amber-400/20 text-white"}`}>{(c.free||isPro)? "Start →":"Unlock with Pro →"}</button>
+                      <button onClick={()=> { if(!(c.free || isPro)) { triggerPaywall("academy-lesson"); return; } setOpenCourse(c); setOpenLesson(null); setDoneIds(prev=>Array.from(new Set([...(prev||[]), ...((c as any).doneLessonIds||[])]))); }} className={`mt-3 w-full py-2 rounded-xl font-bold text-sm ${ (c.free||isPro)? "bg-white text-black":"glass border-amber-400/20 text-white"}`}>{(c.free||isPro)? "Open course →":"Unlock with Pro →"}</button>
                     </div>
                   </div>
                 ))}
@@ -1581,6 +1586,66 @@ export default function LINGAUX() {
                 <div className="mt-3 text-xs text-white/40 text-center">Secure checkout • Cashfree & Razorpay (India) • PayPal (Global)</div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ACADEMY COURSE MODAL */}
+      {openCourse && (
+        <div className="fixed inset-0 z-50 grid place-items-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={()=>{setOpenCourse(null); setOpenLesson(null);}}/>
+          <div className="relative w-full max-w-[640px] glass-strong rounded-[24px] overflow-hidden border-white/15 shadow-2xl max-h-[88vh] overflow-y-auto">
+            <div className="sticky top-0 glass-strong border-b border-white/10 p-5 flex items-start justify-between gap-3">
+              <div>
+                <div className="text-xs font-black tracking-widest text-amber-300">{(openCourse.title||"COURSE").toUpperCase()}</div>
+                <h3 className="mt-1 font-serif text-xl font-bold leading-tight">{openCourse.description || openCourse.title}</h3>
+                <div className="mt-1 text-xs text-white/50">{openCourse.items?.length || openCourse.lessons} lessons • {doneIds.filter(d=>(openCourse.items||[]).some((l:any)=>l.id===d)).length} completed</div>
+              </div>
+              <button onClick={()=>{setOpenCourse(null); setOpenLesson(null);}} className="w-8 h-8 rounded-full glass grid place-items-center shrink-0">✕</button>
+            </div>
+            {openLesson ? (
+              <div className="p-5">
+                <button onClick={()=>setOpenLesson(null)} className="text-xs text-white/60 hover:text-white">← All lessons</button>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="w-8 h-8 rounded-xl bg-white text-black grid place-items-center font-black shrink-0">{String(openLesson.order).padStart(2,"0")}</span>
+                  <div className="font-bold text-sm">{openLesson.title}</div>
+                  {doneIds.includes(openLesson.id) && <span className="ml-auto text-xs px-2 py-1 rounded-full bg-emerald-500 text-white font-bold">✓ Done</span>}
+                </div>
+                <div className="mt-4 space-y-3 text-sm text-white/80 leading-relaxed whitespace-pre-line">{openLesson.body}</div>
+                {openLesson.drill ? (
+                  <div className="mt-5 glass rounded-xl p-4 border-amber-400/20">
+                    <div className="text-xs font-black tracking-widest text-amber-300">YOUR DRILL</div>
+                    <div className="mt-1 text-sm text-white/80 leading-relaxed">{openLesson.drill}</div>
+                  </div>
+                ) : null}
+                <div className="mt-5 flex gap-2">
+                  {!doneIds.includes(openLesson.id) ? (
+                    <button onClick={async()=>{
+                      try{
+                        const res = await fetch("/api/courses/complete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({lessonId:openLesson.id})});
+                        const j = await res.json();
+                        if(!res.ok){ if(j.code==="PAYWALL"){ triggerPaywall("academy-lesson"); return; } throw new Error(j.error); }
+                        setDoneIds(d=>[...d, openLesson.id]);
+                        setToast("Lesson complete ✓"); setTimeout(()=>setToast(null),2000);
+                      }catch(e:any){ setToast(e.message||"Failed"); setTimeout(()=>setToast(null),3000); }
+                    }} className="flex-1 py-3 rounded-xl bg-white text-black font-black text-sm">Mark lesson done</button>
+                  ) : (
+                    <div className="flex-1 py-3 rounded-xl glass font-bold text-sm text-center">Completed ✓</div>
+                  )}
+                  <button onClick={()=>{ const next=(openCourse.items||[]).find((l:any)=>l.order===openLesson.order+1); if(next){ if(next.free||isPro){ setOpenLesson(next); } else { triggerPaywall("academy-lesson"); } } else { setToast("Course complete — pick another"); setTimeout(()=>setToast(null),2500); } }} className="px-5 py-3 rounded-xl glass font-bold text-sm">Next →</button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-5 space-y-2">
+                {(openCourse.items||[]).map((l:any)=>(
+                  <button key={l.id} onClick={()=>{ if(l.free||isPro){ setOpenLesson(l); } else { triggerPaywall("academy-lesson"); } }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition ${l.free||isPro ? "glass hover:bg-white/[0.08]" : "glass border-amber-400/20 opacity-80"}`}>
+                    <span className="w-8 h-8 rounded-xl bg-white text-black grid place-items-center font-black shrink-0 text-xs">{String(l.order).padStart(2,"0")}</span>
+                    <span className="flex-1 min-w-0"><span className="text-sm font-bold block truncate">{l.title}</span><span className="text-xs text-white/50">{l.minutes} min</span></span>
+                    {doneIds.includes(l.id) ? <span className="w-6 h-6 rounded-full bg-emerald-500 text-white grid place-items-center text-xs shrink-0">✓</span> : (!l.free && !isPro ? <span className="text-xs px-2 py-1 rounded-full bg-amber-400 text-black font-black shrink-0">PRO</span> : null)}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
